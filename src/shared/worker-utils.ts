@@ -1,12 +1,24 @@
 import path from "path";
 import { homedir } from "os";
-import { readFileSync } from "fs";
+import { readFileSync, existsSync } from "fs";
 import { logger } from "../utils/logger.js";
 import { HOOK_TIMEOUTS, getTimeout } from "./hook-constants.js";
 import { SettingsDefaultsManager } from "./SettingsDefaultsManager.js";
 import { getWorkerRestartInstructions } from "../utils/error-messages.js";
 
-const MARKETPLACE_ROOT = path.join(homedir(), '.claude', 'plugins', 'marketplaces', 'thedotmack');
+// Use CLAUDE_PLUGIN_ROOT if set (--plugin-dir mode), otherwise fall back to marketplace
+function getPluginRoot(): string | null {
+  // When using --plugin-dir, Claude Code sets CLAUDE_PLUGIN_ROOT
+  if (process.env.CLAUDE_PLUGIN_ROOT) {
+    return process.env.CLAUDE_PLUGIN_ROOT;
+  }
+  // Fall back to marketplace path for installed plugins
+  const marketplacePath = path.join(homedir(), '.claude', 'plugins', 'marketplaces', 'thedotmack');
+  if (existsSync(marketplacePath)) {
+    return marketplacePath;
+  }
+  return null;
+}
 
 // Named constants for health checks
 const HEALTH_CHECK_TIMEOUT_MS = getTimeout(HOOK_TIMEOUTS.HEALTH_CHECK);
@@ -69,11 +81,22 @@ async function isWorkerHealthy(): Promise<boolean> {
 
 /**
  * Get the current plugin version from package.json
+ * Returns null if plugin root not found (graceful degradation)
  */
-function getPluginVersion(): string {
-  const packageJsonPath = path.join(MARKETPLACE_ROOT, 'package.json');
-  const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
-  return packageJson.version;
+function getPluginVersion(): string | null {
+  const pluginRoot = getPluginRoot();
+  if (!pluginRoot) {
+    logger.debug('SYSTEM', 'Plugin root not found, skipping version check');
+    return null;
+  }
+  try {
+    const packageJsonPath = path.join(pluginRoot, 'package.json');
+    const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
+    return packageJson.version;
+  } catch (e) {
+    logger.debug('SYSTEM', 'Failed to read plugin version', { error: e instanceof Error ? e.message : String(e) });
+    return null;
+  }
 }
 
 /**
@@ -97,6 +120,11 @@ async function getWorkerVersion(): Promise<string> {
  */
 async function checkWorkerVersion(): Promise<void> {
   const pluginVersion = getPluginVersion();
+  if (!pluginVersion) {
+    // Plugin root not found, skip version check
+    return;
+  }
+
   const workerVersion = await getWorkerVersion();
 
   if (pluginVersion !== workerVersion) {

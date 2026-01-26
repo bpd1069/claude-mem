@@ -11,8 +11,22 @@
 
 import path from 'path';
 import { homedir } from 'os';
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import { logger } from '../../utils/logger.js';
+
+/**
+ * Get plugin root path - uses CLAUDE_PLUGIN_ROOT if set, otherwise marketplace
+ */
+function getPluginRoot(): string | null {
+  if (process.env.CLAUDE_PLUGIN_ROOT) {
+    return process.env.CLAUDE_PLUGIN_ROOT;
+  }
+  const marketplacePath = path.join(homedir(), '.claude', 'plugins', 'marketplaces', 'thedotmack');
+  if (existsSync(marketplacePath)) {
+    return marketplacePath;
+  }
+  return null;
+}
 
 /**
  * Check if a port is in use by querying the health endpoint
@@ -94,12 +108,22 @@ export async function httpShutdown(port: number): Promise<boolean> {
 /**
  * Get the plugin version from the installed marketplace package.json
  * This is the "expected" version that should be running
+ * Returns null if plugin root not found
  */
-export function getInstalledPluginVersion(): string {
-  const marketplaceRoot = path.join(homedir(), '.claude', 'plugins', 'marketplaces', 'thedotmack');
-  const packageJsonPath = path.join(marketplaceRoot, 'package.json');
-  const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
-  return packageJson.version;
+export function getInstalledPluginVersion(): string | null {
+  const pluginRoot = getPluginRoot();
+  if (!pluginRoot) {
+    logger.debug('SYSTEM', 'Plugin root not found, skipping version check');
+    return null;
+  }
+  try {
+    const packageJsonPath = path.join(pluginRoot, 'package.json');
+    const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
+    return packageJson.version;
+  } catch (e) {
+    logger.debug('SYSTEM', 'Failed to read plugin version', { error: e instanceof Error ? e.message : String(e) });
+    return null;
+  }
 }
 
 /**
@@ -134,8 +158,8 @@ export async function checkVersionMatch(port: number): Promise<VersionCheckResul
   const pluginVersion = getInstalledPluginVersion();
   const workerVersion = await getRunningWorkerVersion(port);
 
-  // If we can't get worker version, assume it matches (graceful degradation)
-  if (!workerVersion) {
+  // If we can't get either version, assume match (graceful degradation)
+  if (!pluginVersion || !workerVersion) {
     return { matches: true, pluginVersion, workerVersion };
   }
 

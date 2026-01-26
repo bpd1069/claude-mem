@@ -17,9 +17,9 @@ export async function hookCommand(platform: string, event: string): Promise<void
     console.log(JSON.stringify(output));
     process.exit(result.exitCode ?? HOOK_EXIT_CODES.SUCCESS);
   } catch (error) {
+    // Log for diagnostics but exit gracefully to avoid ugly errors in Claude Code
+    // Per project exit code strategy: exit 0 for graceful failures
     console.error(`Hook error: ${error}`);
-    // Use exit code 2 (blocking error) so users see the error message
-    // Exit code 1 only shows in verbose mode per Claude Code docs
-    process.exit(HOOK_EXIT_CODES.BLOCKING_ERROR);  // = 2
+    process.exit(HOOK_EXIT_CODES.SUCCESS);  // = 0
   }
 }
