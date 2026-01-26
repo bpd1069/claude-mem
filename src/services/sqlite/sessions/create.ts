@@ -41,8 +41,16 @@ export function createSDKSession(
   `).run(contentSessionId, project, userPrompt, now.toISOString(), nowEpoch);
 
   // Return existing or new ID
-  const row = db.prepare('SELECT id FROM sdk_sessions WHERE content_session_id = ?')
-    .get(contentSessionId) as { id: number };
+  const row = db.prepare('SELECT id, project FROM sdk_sessions WHERE content_session_id = ?')
+    .get(contentSessionId) as { id: number; project: string };
+
+  // Update project if it was empty and we now have a value
+  // This handles the case where observations endpoint created the session first with empty project
+  if (project && (!row.project || row.project === '')) {
+    db.prepare('UPDATE sdk_sessions SET project = ? WHERE id = ?').run(project, row.id);
+    logger.debug('SESSION', `Updated empty project to "${project}" for session ${row.id}`);
+  }
+
   return row.id;
 }
 
