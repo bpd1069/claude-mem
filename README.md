@@ -246,6 +246,88 @@ See the **[Configuration Guide](https://docs.claude-mem.ai/configuration)** for 
 
 ---
 
+## LM Studio Support (Local Models)
+
+Claude-Mem supports local model inference via [LM Studio](https://lmstudio.ai/), enabling zero-cost observation processing with your own GPU.
+
+### Recommended Model: IBM Granite
+
+**`ibm/granite-4-h-tiny`** is recommended for observation processing:
+
+- **Fast inference** - 1B active parameters, optimized for speed
+- **1M context window** - Handles long tool outputs without truncation
+- **Structured data specialist** - Excellent at extracting observations from JSON/code
+- **Low VRAM** - Runs on most consumer GPUs
+
+### Configuration
+
+1. Start LM Studio and load a model (e.g., Granite)
+2. Enable the local server (default: `http://localhost:1234/v1`)
+3. Configure claude-mem:
+
+```bash
+curl -X POST http://127.0.0.1:37777/api/settings \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "CLAUDE_MEM_PROVIDER": "lmstudio",
+    "CLAUDE_MEM_LMSTUDIO_MODEL": "ibm/granite-4-h-tiny"
+  }'
+```
+
+Or edit `~/.claude-mem/settings.json`:
+
+```json
+{
+  "CLAUDE_MEM_PROVIDER": "lmstudio",
+  "CLAUDE_MEM_LMSTUDIO_BASE_URL": "http://localhost:1234/v1",
+  "CLAUDE_MEM_LMSTUDIO_MODEL": "ibm/granite-4-h-tiny"
+}
+```
+
+### Benefits
+
+- **Zero API costs** - All processing runs locally
+- **Faster inference** - No network latency
+- **Works offline** - No internet required
+- **Privacy** - Observations never leave your machine
+
+---
+
+## Local Development
+
+For plugin development, use `--plugin-dir` to load directly from your local repo instead of installing to the marketplace:
+
+```bash
+# Clone and build
+git clone https://github.com/bpd1069/claude-mem.git
+cd claude-mem
+npm install
+npm run build
+
+# Run Claude Code with local plugin
+cc --plugin-dir ./plugin
+```
+
+### Development Workflow
+
+```bash
+# Build and restart worker after changes
+npm run build-and-sync
+
+# Check worker status
+curl http://127.0.0.1:37777/api/readiness
+
+# View logs
+npm run worker:logs
+```
+
+This approach:
+- Avoids marketplace installation/sync overhead
+- Enables rapid iteration with `build-and-sync`
+- Uses `CLAUDE_PLUGIN_ROOT` env var for dynamic path resolution
+
+---
+
 ## Development
 
 See the **[Development Guide](https://docs.claude-mem.ai/development)** for build instructions, testing, and contribution workflow.
