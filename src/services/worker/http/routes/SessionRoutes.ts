@@ -14,6 +14,7 @@ import { DatabaseManager } from '../../DatabaseManager.js';
 import { SDKAgent } from '../../SDKAgent.js';
 import { GeminiAgent, isGeminiSelected, isGeminiAvailable } from '../../GeminiAgent.js';
 import { OpenRouterAgent, isOpenRouterSelected, isOpenRouterAvailable } from '../../OpenRouterAgent.js';
+import { LMStudioAgent, isLMStudioSelected, isLMStudioAvailable } from '../../LMStudioAgent.js';
 import type { WorkerService } from '../../../worker-service.js';
 import { BaseRouteHandler } from '../BaseRouteHandler.js';
 import { SessionEventBroadcaster } from '../../events/SessionEventBroadcaster.js';
@@ -31,6 +32,7 @@ export class SessionRoutes extends BaseRouteHandler {
     private sdkAgent: SDKAgent,
     private geminiAgent: GeminiAgent,
     private openRouterAgent: OpenRouterAgent,
+    private lmStudioAgent: LMStudioAgent,
     private eventBroadcaster: SessionEventBroadcaster,
     private workerService: WorkerService
   ) {
@@ -48,7 +50,15 @@ export class SessionRoutes extends BaseRouteHandler {
    * Note: Session linking via contentSessionId allows provider switching mid-session.
    * The conversationHistory on ActiveSession maintains context across providers.
    */
-  private getActiveAgent(): SDKAgent | GeminiAgent | OpenRouterAgent {
+  private getActiveAgent(): SDKAgent | GeminiAgent | OpenRouterAgent | LMStudioAgent {
+    if (isLMStudioSelected()) {
+      if (isLMStudioAvailable()) {
+        logger.debug('SESSION', 'Using LM Studio agent');
+        return this.lmStudioAgent;
+      } else {
+        throw new Error('LM Studio provider selected but not available. Check that LM Studio is running at the configured base URL.');
+      }
+    }
     if (isOpenRouterSelected()) {
       if (isOpenRouterAvailable()) {
         logger.debug('SESSION', 'Using OpenRouter agent');
@@ -71,7 +81,10 @@ export class SessionRoutes extends BaseRouteHandler {
   /**
    * Get the currently selected provider name
    */
-  private getSelectedProvider(): 'claude' | 'gemini' | 'openrouter' {
+  private getSelectedProvider(): 'claude' | 'gemini' | 'openrouter' | 'lmstudio' {
+    if (isLMStudioSelected() && isLMStudioAvailable()) {
+      return 'lmstudio';
+    }
     if (isOpenRouterSelected() && isOpenRouterAvailable()) {
       return 'openrouter';
     }
@@ -117,13 +130,25 @@ export class SessionRoutes extends BaseRouteHandler {
    */
   private startGeneratorWithProvider(
     session: ReturnType<typeof this.sessionManager.getSession>,
-    provider: 'claude' | 'gemini' | 'openrouter',
+    provider: 'claude' | 'gemini' | 'openrouter' | 'lmstudio',
     source: string
   ): void {
     if (!session) return;
 
-    const agent = provider === 'openrouter' ? this.openRouterAgent : (provider === 'gemini' ? this.geminiAgent : this.sdkAgent);
-    const agentName = provider === 'openrouter' ? 'OpenRouter' : (provider === 'gemini' ? 'Gemini' : 'Claude SDK');
+    const agentMap = {
+      'lmstudio': this.lmStudioAgent,
+      'openrouter': this.openRouterAgent,
+      'gemini': this.geminiAgent,
+      'claude': this.sdkAgent
+    };
+    const nameMap = {
+      'lmstudio': 'LM Studio',
+      'openrouter': 'OpenRouter',
+      'gemini': 'Gemini',
+      'claude': 'Claude SDK'
+    };
+    const agent = agentMap[provider];
+    const agentName = nameMap[provider];
 
     logger.info('SESSION', `Generator auto-starting (${source}) using ${agentName}`, {
       sessionId: session.sessionDbId,
