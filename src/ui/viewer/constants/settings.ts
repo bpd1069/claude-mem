@@ -17,6 +17,8 @@ export const DEFAULT_SETTINGS = {
   CLAUDE_MEM_OPENROUTER_SITE_URL: '',
   CLAUDE_MEM_OPENROUTER_APP_NAME: 'claude-mem',
   CLAUDE_MEM_GEMINI_RATE_LIMITING_ENABLED: 'true',
+  CLAUDE_MEM_LMSTUDIO_BASE_URL: 'http://localhost:1234/v1',
+  CLAUDE_MEM_LMSTUDIO_MODEL: '',
 
   // Token Economics (all true for backwards compatibility)
   CLAUDE_MEM_CONTEXT_SHOW_READ_TOKENS: 'true',

@@ -423,6 +423,7 @@ export function ContextSettingsModal({
                   <option value="claude">Claude (uses your Claude account)</option>
                   <option value="gemini">Gemini (uses API key)</option>
                   <option value="openrouter">OpenRouter (multi-model)</option>
+                  <option value="lmstudio">LM Studio (local models)</option>
                 </select>
               </FormField>
 
@@ -524,6 +525,33 @@ export function ContextSettingsModal({
                       value={formState.CLAUDE_MEM_OPENROUTER_APP_NAME || 'claude-mem'}
                       onChange={(e) => updateSetting('CLAUDE_MEM_OPENROUTER_APP_NAME', e.target.value)}
                       placeholder="claude-mem"
+                    />
+                  </FormField>
+                </>
+              )}
+
+              {formState.CLAUDE_MEM_PROVIDER === 'lmstudio' && (
+                <>
+                  <FormField
+                    label="LM Studio URL"
+                    tooltip="LM Studio server URL (default: http://localhost:1234/v1)"
+                  >
+                    <input
+                      type="text"
+                      value={formState.CLAUDE_MEM_LMSTUDIO_BASE_URL || 'http://localhost:1234/v1'}
+                      onChange={(e) => updateSetting('CLAUDE_MEM_LMSTUDIO_BASE_URL', e.target.value)}
+                      placeholder="http://localhost:1234/v1"
+                    />
+                  </FormField>
+                  <FormField
+                    label="Model"
+                    tooltip="Model name loaded in LM Studio (leave empty for default). Recommended: ibm/granite-4-h-tiny"
+                  >
+                    <input
+                      type="text"
+                      value={formState.CLAUDE_MEM_LMSTUDIO_MODEL || ''}
+                      onChange={(e) => updateSetting('CLAUDE_MEM_LMSTUDIO_MODEL', e.target.value)}
+                      placeholder="e.g., ibm/granite-4-h-tiny"
                     />
                   </FormField>
                 </>
