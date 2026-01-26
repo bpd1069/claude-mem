@@ -1,11 +1,11 @@
 {
-  "name": "thedotmack",
+  "name": "bpd1069",
   "owner": {
-    "name": "Alex Newman"
+    "name": "bpd1069"
   },
   "metadata": {
-    "description": "Plugins by Alex Newman (thedotmack)",
-    "homepage": "https://github.com/thedotmack/claude-mem"
+    "description": "plugin",
+    "homepage": "https://github.com/bpd1069"
   },
   "plugins": [
     {
