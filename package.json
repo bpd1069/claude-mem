@@ -1,6 +1,6 @@
 {
   "name": "claude-mem",
-  "version": "9.0.7",
+  "version": "9.0.6",
   "description": "Memory compression system for Claude Code - persist context across sessions",
   "keywords": [
     "claude",
@@ -15,7 +15,7 @@
     "typescript",
     "nodejs"
   ],
-  "author": "Alex Newman",
+  "author": "bpd1069",
   "license": "AGPL-3.0",
   "repository": {
     "type": "git",
