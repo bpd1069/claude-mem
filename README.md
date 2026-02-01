@@ -337,9 +337,51 @@ See the **[Troubleshooting Guide](https://docs.claude-mem.ai/troubleshooting)** 
 Create comprehensive bug reports with the automated generator:
 
 ```bash
-cd ~/.claude/plugins/marketplaces/thedotmack
+cd ~/.claude-mem/plugin  # or your installation directory
 npm run bug-report
 ```
+
+## Fork Modifications (bpd1069)
+
+This fork includes the following modifications from the upstream [thedotmack/claude-mem](https://github.com/thedotmack/claude-mem):
+
+### Standalone Installation Support
+
+Path resolution now supports running claude-mem without Claude Code marketplace installation:
+
+| Priority | Location | Purpose |
+|----------|----------|---------|
+| 1 | `CLAUDE_PLUGIN_ROOT` env var | Explicit override |
+| 2 | `~/.claude-mem/plugin/` | Standalone installation |
+| 3 | `~/.claude/plugins/marketplaces/bpd1069/` | Marketplace fallback |
+
+**Standalone Installation:**
+
+```bash
+# Build from source
+cd /path/to/claude-mem
+bun install && bun run build
+
+# Install to standalone location
+mkdir -p ~/.claude-mem/plugin/scripts
+cp plugin/scripts/*.cjs ~/.claude-mem/plugin/scripts/
+cp plugin/package.json ~/.claude-mem/plugin/
+cp -r plugin/modes ~/.claude-mem/plugin/
+cp -r plugin/skills ~/.claude-mem/plugin/
+cp -r plugin/ui ~/.claude-mem/plugin/
+
+# Start worker
+cd ~/.claude-mem && bun plugin/scripts/worker-service.cjs start
+```
+
+This enables:
+- Development without marketplace dependency
+- Cursor IDE integration without Claude Code
+- Custom deployment configurations
+
+*These modifications are shared in accordance with the AGPL-3.0 license.*
+
+---
 
 ## Contributing
 
@@ -376,12 +418,11 @@ See the [LICENSE](LICENSE) file for full details.
 
 ## Support
 
+- **Upstream Repository**: [github.com/thedotmack/claude-mem](https://github.com/thedotmack/claude-mem)
+- **This Fork**: [github.com/bpd1069/claude-mem](https://github.com/bpd1069/claude-mem)
 - **Documentation**: [docs/](docs/)
-- **Issues**: [GitHub Issues](https://github.com/thedotmack/claude-mem/issues)
-- **Repository**: [github.com/thedotmack/claude-mem](https://github.com/thedotmack/claude-mem)
-- **Official X Account**: [@Claude_Memory](https://x.com/Claude_Memory)
-- **Official Discord**: [Join Discord](https://discord.com/invite/J4wttp9vDu)
-- **Author**: Alex Newman ([@thedotmack](https://github.com/thedotmack))
+- **Upstream Issues**: [GitHub Issues](https://github.com/thedotmack/claude-mem/issues)
+- **Original Author**: Alex Newman ([@thedotmack](https://github.com/thedotmack))
 
 ---
 
