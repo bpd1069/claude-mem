@@ -127,13 +127,15 @@ export async function updateCursorContextForProject(projectName: string, port: n
 
 /**
  * Find cursor-hooks directory
- * Searches in order: marketplace install, source repo
+ * Searches in order: local install, marketplace, source repo
  * Checks for both bash (common.sh) and PowerShell (common.ps1) scripts
  */
 export function findCursorHooksDir(): string | null {
   const possiblePaths = [
-    // Marketplace install location
-    path.join(homedir(), '.claude', 'plugins', 'marketplaces', 'thedotmack', 'cursor-hooks'),
+    // Stable user-local location (preferred for standalone)
+    path.join(homedir(), '.claude-mem', 'cursor-hooks'),
+    // Marketplace install location (fallback)
+    path.join(homedir(), '.claude', 'plugins', 'marketplaces', 'bpd1069', 'cursor-hooks'),
     // Development/source location (relative to built worker-service.cjs in plugin/scripts/)
     path.join(path.dirname(__filename), '..', '..', 'cursor-hooks'),
     // Alternative dev location
@@ -151,12 +153,14 @@ export function findCursorHooksDir(): string | null {
 
 /**
  * Find MCP server script path
- * Searches in order: marketplace install, source repo
+ * Searches in order: local install, marketplace, source repo
  */
 export function findMcpServerPath(): string | null {
   const possiblePaths = [
-    // Marketplace install location
-    path.join(homedir(), '.claude', 'plugins', 'marketplaces', 'thedotmack', 'plugin', 'scripts', 'mcp-server.cjs'),
+    // Stable user-local location (preferred for standalone)
+    path.join(homedir(), '.claude-mem', 'plugin', 'scripts', 'mcp-server.cjs'),
+    // Marketplace install location (fallback)
+    path.join(homedir(), '.claude', 'plugins', 'marketplaces', 'bpd1069', 'plugin', 'scripts', 'mcp-server.cjs'),
     // Development/source location (relative to built worker-service.cjs in plugin/scripts/)
     path.join(path.dirname(__filename), 'mcp-server.cjs'),
     // Alternative dev location
@@ -173,12 +177,14 @@ export function findMcpServerPath(): string | null {
 
 /**
  * Find worker-service.cjs path for unified CLI
- * Searches in order: marketplace install, source repo
+ * Searches in order: local install, marketplace, source repo
  */
 export function findWorkerServicePath(): string | null {
   const possiblePaths = [
-    // Marketplace install location
-    path.join(homedir(), '.claude', 'plugins', 'marketplaces', 'thedotmack', 'plugin', 'scripts', 'worker-service.cjs'),
+    // Stable user-local location (preferred for standalone)
+    path.join(homedir(), '.claude-mem', 'plugin', 'scripts', 'worker-service.cjs'),
+    // Marketplace install location (fallback)
+    path.join(homedir(), '.claude', 'plugins', 'marketplaces', 'bpd1069', 'plugin', 'scripts', 'worker-service.cjs'),
     // Development/source location (relative to built worker-service.cjs in plugin/scripts/)
     path.join(path.dirname(__filename), 'worker-service.cjs'),
     // Alternative dev location
@@ -230,7 +236,8 @@ export function configureCursorMcp(target: CursorInstallTarget): number {
 
   if (!mcpServerPath) {
     console.error('Could not find MCP server script');
-    console.error('   Expected at: ~/.claude/plugins/marketplaces/thedotmack/plugin/scripts/mcp-server.cjs');
+    console.error('   Expected at: ~/.claude-mem/plugin/scripts/mcp-server.cjs');
+    console.error('            or: ~/.claude/plugins/marketplaces/bpd1069/plugin/scripts/mcp-server.cjs');
     return 1;
   }
 
@@ -299,7 +306,8 @@ export async function installCursorHooks(_sourceDir: string, target: CursorInsta
   const workerServicePath = findWorkerServicePath();
   if (!workerServicePath) {
     console.error('Could not find worker-service.cjs');
-    console.error('   Expected at: ~/.claude/plugins/marketplaces/thedotmack/plugin/scripts/worker-service.cjs');
+    console.error('   Expected at: ~/.claude-mem/plugin/scripts/worker-service.cjs');
+    console.error('            or: ~/.claude/plugins/marketplaces/bpd1069/plugin/scripts/worker-service.cjs');
     return 1;
   }
 
@@ -616,7 +624,8 @@ export async function handleCursorCommand(subcommand: string, args: string[]): P
 
       if (!cursorHooksDir) {
         console.error('Could not find cursor-hooks directory');
-        console.error('   Expected at: ~/.claude/plugins/marketplaces/thedotmack/cursor-hooks/');
+        console.error('   Expected at: ~/.claude-mem/cursor-hooks/');
+        console.error('            or: ~/.claude/plugins/marketplaces/bpd1069/cursor-hooks/');
         return 1;
       }
 

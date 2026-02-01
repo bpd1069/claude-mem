@@ -6,17 +6,28 @@ import { HOOK_TIMEOUTS, getTimeout } from "./hook-constants.js";
 import { SettingsDefaultsManager } from "./SettingsDefaultsManager.js";
 import { getWorkerRestartInstructions } from "../utils/error-messages.js";
 
-// Use CLAUDE_PLUGIN_ROOT if set (--plugin-dir mode), otherwise fall back to marketplace
+/**
+ * Get plugin root path with fallback resolution
+ * Priority: 1) CLAUDE_PLUGIN_ROOT env, 2) ~/.claude-mem/plugin/, 3) marketplace
+ */
 function getPluginRoot(): string | null {
-  // When using --plugin-dir, Claude Code sets CLAUDE_PLUGIN_ROOT
+  // Explicit env var override (for --plugin-dir mode)
   if (process.env.CLAUDE_PLUGIN_ROOT) {
     return process.env.CLAUDE_PLUGIN_ROOT;
   }
-  // Fall back to marketplace path for installed plugins
-  const marketplacePath = path.join(homedir(), '.claude', 'plugins', 'marketplaces', 'thedotmack');
-  if (existsSync(marketplacePath)) {
+  
+  // Stable user-local location (preferred for standalone)
+  const localPath = path.join(homedir(), '.claude-mem', 'plugin');
+  if (existsSync(path.join(localPath, 'package.json'))) {
+    return localPath;
+  }
+  
+  // Claude Code marketplace install (fallback)
+  const marketplacePath = path.join(homedir(), '.claude', 'plugins', 'marketplaces', 'bpd1069');
+  if (existsSync(path.join(marketplacePath, 'package.json'))) {
     return marketplacePath;
   }
+  
   return null;
 }
 
