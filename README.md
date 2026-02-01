@@ -388,7 +388,7 @@ To use claude-mem with Cursor IDE, configure both the MCP server and hooks:
 {
   "mcpServers": {
     "claude-mem": {
-      "command": "node",
+      "command": "bun",
       "args": ["/home/YOUR_USER/.claude-mem/plugin/scripts/mcp-server.cjs"]
     }
   }
@@ -401,24 +401,26 @@ To use claude-mem with Cursor IDE, configure both the MCP server and hooks:
   "version": 1,
   "hooks": {
     "beforeSubmitPrompt": [
-      { "command": "node \"/home/YOUR_USER/.claude-mem/plugin/scripts/worker-service.cjs\" hook cursor session-init" },
-      { "command": "node \"/home/YOUR_USER/.claude-mem/plugin/scripts/worker-service.cjs\" hook cursor context" }
+      { "command": "bun \"/home/YOUR_USER/.claude-mem/plugin/scripts/worker-service.cjs\" hook cursor session-init" },
+      { "command": "bun \"/home/YOUR_USER/.claude-mem/plugin/scripts/worker-service.cjs\" hook cursor context" }
     ],
     "afterMCPExecution": [
-      { "command": "node \"/home/YOUR_USER/.claude-mem/plugin/scripts/worker-service.cjs\" hook cursor observation" }
+      { "command": "bun \"/home/YOUR_USER/.claude-mem/plugin/scripts/worker-service.cjs\" hook cursor observation" }
     ],
     "afterShellExecution": [
-      { "command": "node \"/home/YOUR_USER/.claude-mem/plugin/scripts/worker-service.cjs\" hook cursor observation" }
+      { "command": "bun \"/home/YOUR_USER/.claude-mem/plugin/scripts/worker-service.cjs\" hook cursor observation" }
     ],
     "afterFileEdit": [
-      { "command": "node \"/home/YOUR_USER/.claude-mem/plugin/scripts/worker-service.cjs\" hook cursor file-edit" }
+      { "command": "bun \"/home/YOUR_USER/.claude-mem/plugin/scripts/worker-service.cjs\" hook cursor file-edit" }
     ],
     "stop": [
-      { "command": "node \"/home/YOUR_USER/.claude-mem/plugin/scripts/worker-service.cjs\" hook cursor summarize" }
+      { "command": "bun \"/home/YOUR_USER/.claude-mem/plugin/scripts/worker-service.cjs\" hook cursor summarize" }
     ]
   }
 }
 ```
+
+**Note:** Uses `bun` runtime (not `node`) due to `bun:sqlite` dependency.
 
 Replace `YOUR_USER` with your username. Restart Cursor after creating these files.
 
