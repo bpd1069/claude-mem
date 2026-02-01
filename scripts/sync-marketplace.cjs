@@ -11,8 +11,21 @@ const { existsSync, readFileSync } = require('fs');
 const path = require('path');
 const os = require('os');
 
-const INSTALLED_PATH = path.join(os.homedir(), '.claude', 'plugins', 'marketplaces', 'thedotmack');
-const CACHE_BASE_PATH = path.join(os.homedir(), '.claude', 'plugins', 'cache', 'thedotmack', 'claude-mem');
+// Extract org name from git remote (e.g., "bpd1069" from "https://github.com/bpd1069/claude-mem.git")
+function getOrgFromGitRemote() {
+  try {
+    const remoteUrl = execSync('git remote get-url origin', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+    // Handle both HTTPS and SSH formats
+    const match = remoteUrl.match(/github\.com[/:]([^/]+)\//);
+    return match ? match[1] : 'thedotmack';
+  } catch {
+    return 'thedotmack';
+  }
+}
+
+const ORG_NAME = getOrgFromGitRemote();
+const INSTALLED_PATH = path.join(os.homedir(), '.claude', 'plugins', 'marketplaces', ORG_NAME);
+const CACHE_BASE_PATH = path.join(os.homedir(), '.claude', 'plugins', 'cache', ORG_NAME, 'claude-mem');
 
 function getCurrentBranch() {
   try {
@@ -58,16 +71,16 @@ function getPluginVersion() {
 }
 
 // Normal rsync for main branch or fresh install
-console.log('Syncing to marketplace...');
+console.log(`Syncing to marketplace (${ORG_NAME})...`);
 try {
   execSync(
-    'rsync -av --delete --exclude=.git --exclude=/.mcp.json ./ ~/.claude/plugins/marketplaces/thedotmack/',
+    `rsync -av --delete --exclude=.git --exclude=/.mcp.json ./ "${INSTALLED_PATH}/"`,
     { stdio: 'inherit' }
   );
 
   console.log('Running npm install in marketplace...');
   execSync(
-    'cd ~/.claude/plugins/marketplaces/thedotmack/ && npm install',
+    `cd "${INSTALLED_PATH}/" && npm install`,
     { stdio: 'inherit' }
   );
 
