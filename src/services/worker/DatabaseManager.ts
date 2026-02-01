@@ -5,19 +5,24 @@
  * - Manage single database connection for worker lifetime
  * - Provide centralized access to SessionStore and SessionSearch
  * - High-level database operations
- * - ChromaSync integration
+ * - Vector backend integration (ChromaDB or sqlite-vec)
  */
 
 import { SessionStore } from '../sqlite/SessionStore.js';
 import { SessionSearch } from '../sqlite/SessionSearch.js';
 import { ChromaSync } from '../sync/ChromaSync.js';
+import type { VectorBackend } from '../vector/VectorBackend.js';
+import { ChromaBackend } from '../vector/ChromaBackend.js';
+import { SqliteVecBackend } from '../vector/SqliteVecBackend.js';
 import { logger } from '../../utils/logger.js';
+import { SettingsDefaultsManager } from '../../shared/SettingsDefaultsManager.js';
+import { USER_SETTINGS_PATH } from '../../shared/paths.js';
 import type { DBSession } from '../worker-types.js';
 
 export class DatabaseManager {
   private sessionStore: SessionStore | null = null;
   private sessionSearch: SessionSearch | null = null;
-  private chromaSync: ChromaSync | null = null;
+  private vectorBackend: VectorBackend | null = null;
 
   /**
    * Initialize database connection (once, stays open)
@@ -27,20 +32,37 @@ export class DatabaseManager {
     this.sessionStore = new SessionStore();
     this.sessionSearch = new SessionSearch();
 
-    // Initialize ChromaSync (lazy - connects on first search, not at startup)
-    this.chromaSync = new ChromaSync('claude-mem');
+    // Initialize vector backend based on settings
+    const settings = SettingsDefaultsManager.loadFromFile(USER_SETTINGS_PATH);
+    const backendType = (settings as any).VECTOR_BACKEND || 'chroma';
 
-    logger.info('DB', 'Database initialized');
+    if (backendType === 'chroma') {
+      this.vectorBackend = new ChromaBackend('claude-mem');
+    } else if (backendType === 'sqlite-vec') {
+      this.vectorBackend = new SqliteVecBackend('claude-mem');
+    } else if (backendType === 'none') {
+      this.vectorBackend = null;
+      logger.info('DB', 'Vector backend disabled');
+    } else {
+      logger.warn('DB', `Unknown vector backend: ${backendType}, using chroma`);
+      this.vectorBackend = new ChromaBackend('claude-mem');
+    }
+
+    if (this.vectorBackend) {
+      await this.vectorBackend.initialize();
+    }
+
+    logger.info('DB', 'Database initialized', { vectorBackend: backendType });
   }
 
   /**
    * Close database connection and cleanup all resources
    */
   async close(): Promise<void> {
-    // Close ChromaSync first (terminates uvx/python processes)
-    if (this.chromaSync) {
-      await this.chromaSync.close();
-      this.chromaSync = null;
+    // Close vector backend first (terminates any subprocesses)
+    if (this.vectorBackend) {
+      await this.vectorBackend.close();
+      this.vectorBackend = null;
     }
 
     if (this.sessionStore) {
@@ -75,13 +97,25 @@ export class DatabaseManager {
   }
 
   /**
-   * Get ChromaSync instance (throws if not initialized)
+   * Get vector backend instance (throws if not initialized)
+   */
+  getVectorBackend(): VectorBackend {
+    if (!this.vectorBackend) {
+      throw new Error('Vector backend not initialized or disabled');
+    }
+    return this.vectorBackend;
+  }
+
+  /**
+   * Get ChromaSync instance (backwards compatibility)
+   * @deprecated Use getVectorBackend() instead
    */
   getChromaSync(): ChromaSync {
-    if (!this.chromaSync) {
-      throw new Error('ChromaSync not initialized');
+    if (!this.vectorBackend) {
+      throw new Error('Vector backend not initialized');
     }
-    return this.chromaSync;
+    // Cast to ChromaSync for backwards compatibility
+    return this.vectorBackend as unknown as ChromaSync;
   }
 
   // REMOVED: cleanupOrphanedSessions - violates "EVERYTHING SHOULD SAVE ALWAYS"

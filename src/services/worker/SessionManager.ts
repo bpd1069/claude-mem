@@ -6,6 +6,7 @@
  * - Handle event-driven message queues
  * - Coordinate between HTTP requests and SDK agent
  * - Zero-latency event notification (no polling)
+ * - Idle detection for git-lfs auto-push
  */
 
 import { EventEmitter } from 'events';
@@ -14,6 +15,10 @@ import { logger } from '../../utils/logger.js';
 import type { ActiveSession, PendingMessage, PendingMessageWithId, ObservationData } from '../worker-types.js';
 import { PendingMessageStore } from '../sqlite/PendingMessageStore.js';
 import { SessionQueueProcessor } from '../queue/SessionQueueProcessor.js';
+import { GitLfsSync } from '../sync/GitLfsSync.js';
+import { SettingsDefaultsManager } from '../../shared/SettingsDefaultsManager.js';
+import { USER_SETTINGS_PATH } from '../../shared/paths.js';
+import { SqliteVecBackend } from '../vector/SqliteVecBackend.js';
 
 export class SessionManager {
   private dbManager: DatabaseManager;
@@ -22,8 +27,98 @@ export class SessionManager {
   private onSessionDeletedCallback?: () => void;
   private pendingStore: PendingMessageStore | null = null;
 
+  // Idle detection for git-lfs auto-push
+  private lastActivityTime: Date = new Date();
+  private gitLfsSync: GitLfsSync | null = null;
+  private idleCheckInterval: ReturnType<typeof setInterval> | null = null;
+  private gitLfsEnabled: boolean = false;
+
   constructor(dbManager: DatabaseManager) {
     this.dbManager = dbManager;
+    this.initializeGitLfsSync();
+  }
+
+  /**
+   * Initialize git-lfs sync if enabled and using sqlite-vec backend
+   */
+  private initializeGitLfsSync(): void {
+    const settings = SettingsDefaultsManager.loadFromFile(USER_SETTINGS_PATH);
+    const vectorBackend = (settings as any).VECTOR_BACKEND || 'chroma';
+    this.gitLfsEnabled = settings.GIT_LFS_ENABLED === 'true' && vectorBackend === 'sqlite-vec';
+
+    if (this.gitLfsEnabled) {
+      this.gitLfsSync = new GitLfsSync();
+      this.startIdleCheck();
+      logger.info('SESSION', 'Git-LFS auto-push enabled', {
+        idleSeconds: parseInt(settings.GIT_LFS_IDLE_PUSH_SECONDS || '300', 10)
+      });
+    }
+  }
+
+  /**
+   * Start periodic idle check for auto-push
+   */
+  private startIdleCheck(): void {
+    if (this.idleCheckInterval) return;
+
+    const settings = SettingsDefaultsManager.loadFromFile(USER_SETTINGS_PATH);
+    const checkIntervalMs = 60000; // Check every minute
+
+    this.idleCheckInterval = setInterval(async () => {
+      await this.checkIdleAndPush();
+    }, checkIntervalMs);
+  }
+
+  /**
+   * Stop idle check interval
+   */
+  private stopIdleCheck(): void {
+    if (this.idleCheckInterval) {
+      clearInterval(this.idleCheckInterval);
+      this.idleCheckInterval = null;
+    }
+  }
+
+  /**
+   * Update last activity time (call this when any session activity occurs)
+   */
+  updateActivity(): void {
+    this.lastActivityTime = new Date();
+  }
+
+  /**
+   * Check if idle and trigger git-lfs push if needed
+   */
+  private async checkIdleAndPush(): Promise<void> {
+    if (!this.gitLfsSync || !this.gitLfsEnabled) return;
+
+    // Don't push while sessions are active
+    if (this.sessions.size > 0 || this.hasPendingMessages()) {
+      return;
+    }
+
+    if (this.gitLfsSync.shouldAutoPush(this.lastActivityTime)) {
+      logger.info('SESSION', 'Idle detected, triggering git-lfs auto-push');
+
+      try {
+        // Export the sqlite-vec database
+        const vectorBackend = this.dbManager.getVectorBackend();
+        if (vectorBackend instanceof SqliteVecBackend) {
+          const dbPath = vectorBackend.getDatabasePath();
+          await this.gitLfsSync.exportDatabase(dbPath, 'vectors.db');
+          await this.gitLfsSync.push();
+        }
+      } catch (error) {
+        logger.error('SESSION', 'Git-LFS auto-push failed', {}, error as Error);
+      }
+    }
+  }
+
+  /**
+   * Get git-lfs sync instance (for CLI commands)
+   */
+  getGitLfsSync(): GitLfsSync | null {
+    return this.gitLfsSync;
   }
 
   /**
@@ -181,6 +276,9 @@ export class SessionManager {
    * This ensures observations survive worker crashes.
    */
   queueObservation(sessionDbId: number, data: ObservationData): void {
+    // Update activity time for idle detection
+    this.updateActivity();
+
     // Auto-initialize from database if needed (handles worker restarts)
     let session = this.sessions.get(sessionDbId);
     if (!session) {
@@ -225,6 +323,9 @@ export class SessionManager {
    * This ensures summarize requests survive worker crashes.
    */
   queueSummarize(sessionDbId: number, lastAssistantMessage?: string): void {
+    // Update activity time for idle detection
+    this.updateActivity();
+
     // Auto-initialize from database if needed (handles worker restarts)
     let session = this.sessions.get(sessionDbId);
     if (!session) {
@@ -295,6 +396,9 @@ export class SessionManager {
    * Shutdown all active sessions
    */
   async shutdownAll(): Promise<void> {
+    // Stop idle check
+    this.stopIdleCheck();
+
     const sessionIds = Array.from(this.sessions.keys());
     await Promise.all(sessionIds.map(id => this.deleteSession(id)));
   }

@@ -53,6 +53,19 @@ export interface SettingsDefaults {
   // Feature Toggles
   CLAUDE_MEM_CONTEXT_SHOW_LAST_SUMMARY: string;
   CLAUDE_MEM_CONTEXT_SHOW_LAST_MESSAGE: string;
+  // Vector Backend Configuration
+  VECTOR_BACKEND: string;  // 'chroma' | 'sqlite-vec' | 'none'
+  EMBEDDING_PROVIDER: string;  // 'lmstudio' | 'openai' | 'openai-compatible'
+  EMBEDDING_MODEL: string;
+  EMBEDDING_DIMENSIONS: string;
+  OPENAI_API_KEY: string;  // For OpenAI embedding provider
+  // Git-LFS Export Configuration ("Resurrection Ship" - separate from codebases)
+  GIT_LFS_ENABLED: string;
+  GIT_LFS_REMOTE: string;
+  GIT_LFS_REMOTE_URL: string;  // Dedicated memory repo, NOT your project repo
+  GIT_LFS_AUTO_PUSH: string;
+  GIT_LFS_IDLE_PUSH_SECONDS: string;
+  GIT_LFS_TEAM_REPOS: string;  // Future: comma-separated list of team memory repos
 }
 
 export class SettingsDefaultsManager {
@@ -100,6 +113,19 @@ export class SettingsDefaultsManager {
     // Feature Toggles
     CLAUDE_MEM_CONTEXT_SHOW_LAST_SUMMARY: 'true',
     CLAUDE_MEM_CONTEXT_SHOW_LAST_MESSAGE: 'false',
+    // Vector Backend Configuration
+    VECTOR_BACKEND: 'chroma',  // Default to ChromaDB for backwards compatibility
+    EMBEDDING_PROVIDER: 'lmstudio',  // Default to local LM Studio
+    EMBEDDING_MODEL: 'text-embedding-nomic-embed-text-v1.5',  // Good local embedding model
+    EMBEDDING_DIMENSIONS: '768',
+    OPENAI_API_KEY: '',  // Empty by default
+    // Git-LFS Export Configuration ("Resurrection Ship" - separate from codebases)
+    GIT_LFS_ENABLED: 'false',  // Disabled by default
+    GIT_LFS_REMOTE: 'origin',
+    GIT_LFS_REMOTE_URL: '',  // Dedicated memory repo URL, NOT your project repo
+    GIT_LFS_AUTO_PUSH: 'false',  // Manual push by default
+    GIT_LFS_IDLE_PUSH_SECONDS: '300',  // 5 minutes idle before auto-push
+    GIT_LFS_TEAM_REPOS: '',  // Future: comma-separated list of team memory repos to sync
   };
 
   /**

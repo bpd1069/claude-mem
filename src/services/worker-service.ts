@@ -587,6 +587,24 @@ async function main() {
       break;
     }
 
+    case 'git-sync': {
+      const subcommand = process.argv[3];
+      if (!subcommand) {
+        console.error('Usage: claude-mem git-sync <command>');
+        console.error('Commands: status, push, pull, init');
+        process.exit(1);
+      }
+      const { gitSyncCommand } = await import('../cli/git-sync-command.js');
+      await gitSyncCommand(subcommand, process.argv.slice(4));
+      break;
+    }
+
+    case 'export': {
+      const { exportCommand } = await import('../cli/export-command.js');
+      await exportCommand(process.argv.slice(3));
+      break;
+    }
+
     case '--daemon':
     default: {
       const worker = new WorkerService();

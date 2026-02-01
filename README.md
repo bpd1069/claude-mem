@@ -1,353 +1,16 @@
-<h1 align="center">
-  <br>
-  <a href="https://github.com/thedotmack/claude-mem">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/thedotmack/claude-mem/main/docs/public/claude-mem-logo-for-dark-mode.webp">
-      <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/thedotmack/claude-mem/main/docs/public/claude-mem-logo-for-light-mode.webp">
-      <img src="https://raw.githubusercontent.com/thedotmack/claude-mem/main/docs/public/claude-mem-logo-for-light-mode.webp" alt="Claude-Mem" width="400">
-    </picture>
-  </a>
-  <br>
-</h1>
+# claude-mem (bpd1069 fork)
 
-<p align="center">
-  <a href="docs/i18n/README.zh.md">🇨🇳 中文</a> •
-  <a href="docs/i18n/README.ja.md">🇯🇵 日本語</a> •
-  <a href="docs/i18n/README.pt-br.md">🇧🇷 Português</a> •
-  <a href="docs/i18n/README.ko.md">🇰🇷 한국어</a> •
-  <a href="docs/i18n/README.es.md">🇪🇸 Español</a> •
-  <a href="docs/i18n/README.de.md">🇩🇪 Deutsch</a> •
-  <a href="docs/i18n/README.fr.md">🇫🇷 Français</a>
-  <a href="docs/i18n/README.he.md">🇮🇱 עברית</a> •
-  <a href="docs/i18n/README.ar.md">🇸🇦 العربية</a> •
-  <a href="docs/i18n/README.ru.md">🇷🇺 Русский</a> •
-  <a href="docs/i18n/README.pl.md">🇵🇱 Polski</a> •
-  <a href="docs/i18n/README.cs.md">🇨🇿 Čeština</a> •
-  <a href="docs/i18n/README.nl.md">🇳🇱 Nederlands</a> •
-  <a href="docs/i18n/README.tr.md">🇹🇷 Türkçe</a> •
-  <a href="docs/i18n/README.uk.md">🇺🇦 Українська</a> •
-  <a href="docs/i18n/README.vi.md">🇻🇳 Tiếng Việt</a> •
-  <a href="docs/i18n/README.id.md">🇮🇩 Indonesia</a> •
-  <a href="docs/i18n/README.th.md">🇹🇭 ไทย</a> •
-  <a href="docs/i18n/README.hi.md">🇮🇳 हिन्दी</a> •
-  <a href="docs/i18n/README.bn.md">🇧🇩 বাংলা</a> •
-  <a href="docs/i18n/README.ro.md">🇷🇴 Română</a> •
-  <a href="docs/i18n/README.sv.md">🇸🇪 Svenska</a> •
-  <a href="docs/i18n/README.it.md">🇮🇹 Italiano</a> •
-  <a href="docs/i18n/README.el.md">🇬🇷 Ελληνικά</a> •
-  <a href="docs/i18n/README.hu.md">🇭🇺 Magyar</a> •
-  <a href="docs/i18n/README.fi.md">🇫🇮 Suomi</a> •
-  <a href="docs/i18n/README.da.md">🇩🇰 Dansk</a> •
-  <a href="docs/i18n/README.no.md">🇳🇴 Norsk</a>
-</p>
+Fork of [thedotmack/claude-mem](https://github.com/thedotmack/claude-mem) with additional features for standalone deployment, Cursor IDE integration, and alternative vector backends.
 
-<h4 align="center">Persistent memory compression system built for <a href="https://claude.com/claude-code" target="_blank">Claude Code</a>.</h4>
-
-<p align="center">
-  <a href="LICENSE">
-    <img src="https://img.shields.io/badge/License-AGPL%203.0-blue.svg" alt="License">
-  </a>
-  <a href="package.json">
-    <img src="https://img.shields.io/badge/version-6.5.0-green.svg" alt="Version">
-  </a>
-  <a href="package.json">
-    <img src="https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg" alt="Node">
-  </a>
-  <a href="https://github.com/thedotmack/awesome-claude-code">
-    <img src="https://awesome.re/mentioned-badge.svg" alt="Mentioned in Awesome Claude Code">
-  </a>
-</p>
-
-<p align="center">
-  <a href="https://trendshift.io/repositories/15496" target="_blank">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/thedotmack/claude-mem/main/docs/public/trendshift-badge-dark.svg">
-      <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/thedotmack/claude-mem/main/docs/public/trendshift-badge.svg">
-      <img src="https://raw.githubusercontent.com/thedotmack/claude-mem/main/docs/public/trendshift-badge.svg" alt="thedotmack/claude-mem | Trendshift" width="250" height="55"/>
-    </picture>
-  </a>
-</p>
-
-<br>
-
-<p align="center">
-  <a href="https://github.com/thedotmack/claude-mem">
-    <picture>
-      <img src="https://raw.githubusercontent.com/thedotmack/claude-mem/main/docs/public/cm-preview.gif" alt="Claude-Mem Preview" width="800">
-    </picture>
-  </a>
-</p>
-
-<p align="center">
-  <a href="#quick-start">Quick Start</a> •
-  <a href="#how-it-works">How It Works</a> •
-  <a href="#mcp-search-tools">Search Tools</a> •
-  <a href="#documentation">Documentation</a> •
-  <a href="#configuration">Configuration</a> •
-  <a href="#troubleshooting">Troubleshooting</a> •
-  <a href="#license">License</a>
-</p>
-
-<p align="center">
-  Claude-Mem seamlessly preserves context across sessions by automatically capturing tool usage observations, generating semantic summaries, and making them available to future sessions. This enables Claude to maintain continuity of knowledge about projects even after sessions end or reconnect.
-</p>
+**For base documentation, see upstream:** [github.com/thedotmack/claude-mem](https://github.com/thedotmack/claude-mem)
 
 ---
 
-## Quick Start
-
-Start a new Claude Code session in the terminal and enter the following commands:
-
-```
-> /plugin marketplace add thedotmack/claude-mem
-
-> /plugin install claude-mem
-```
-
-Restart Claude Code. Context from previous sessions will automatically appear in new sessions.
-
-**Key Features:**
-
-- 🧠 **Persistent Memory** - Context survives across sessions
-- 📊 **Progressive Disclosure** - Layered memory retrieval with token cost visibility
-- 🔍 **Skill-Based Search** - Query your project history with mem-search skill
-- 🖥️ **Web Viewer UI** - Real-time memory stream at http://localhost:37777
-- 💻 **Claude Desktop Skill** - Search memory from Claude Desktop conversations
-- 🔒 **Privacy Control** - Use `<private>` tags to exclude sensitive content from storage
-- ⚙️ **Context Configuration** - Fine-grained control over what context gets injected
-- 🤖 **Automatic Operation** - No manual intervention required
-- 🔗 **Citations** - Reference past observations with IDs (access via http://localhost:37777/api/observation/{id} or view all in the web viewer at http://localhost:37777)
-- 🧪 **Beta Channel** - Try experimental features like Endless Mode via version switching
-
----
-
-## Documentation
-
-📚 **[View Full Documentation](docs/)** - Browse markdown docs on GitHub
-
-### Getting Started
-
-- **[Installation Guide](https://docs.claude-mem.ai/installation)** - Quick start & advanced installation
-- **[Usage Guide](https://docs.claude-mem.ai/usage/getting-started)** - How Claude-Mem works automatically
-- **[Search Tools](https://docs.claude-mem.ai/usage/search-tools)** - Query your project history with natural language
-- **[Beta Features](https://docs.claude-mem.ai/beta-features)** - Try experimental features like Endless Mode
-
-### Best Practices
-
-- **[Context Engineering](https://docs.claude-mem.ai/context-engineering)** - AI agent context optimization principles
-- **[Progressive Disclosure](https://docs.claude-mem.ai/progressive-disclosure)** - Philosophy behind Claude-Mem's context priming strategy
-
-### Architecture
-
-- **[Overview](https://docs.claude-mem.ai/architecture/overview)** - System components & data flow
-- **[Architecture Evolution](https://docs.claude-mem.ai/architecture-evolution)** - The journey from v3 to v5
-- **[Hooks Architecture](https://docs.claude-mem.ai/hooks-architecture)** - How Claude-Mem uses lifecycle hooks
-- **[Hooks Reference](https://docs.claude-mem.ai/architecture/hooks)** - 7 hook scripts explained
-- **[Worker Service](https://docs.claude-mem.ai/architecture/worker-service)** - HTTP API & Bun management
-- **[Database](https://docs.claude-mem.ai/architecture/database)** - SQLite schema & FTS5 search
-- **[Search Architecture](https://docs.claude-mem.ai/architecture/search-architecture)** - Hybrid search with Chroma vector database
-
-### Configuration & Development
-
-- **[Configuration](https://docs.claude-mem.ai/configuration)** - Environment variables & settings
-- **[Development](https://docs.claude-mem.ai/development)** - Building, testing, contributing
-- **[Troubleshooting](https://docs.claude-mem.ai/troubleshooting)** - Common issues & solutions
-
----
-
-## How It Works
-
-**Core Components:**
-
-1. **5 Lifecycle Hooks** - SessionStart, UserPromptSubmit, PostToolUse, Stop, SessionEnd (6 hook scripts)
-2. **Smart Install** - Cached dependency checker (pre-hook script, not a lifecycle hook)
-3. **Worker Service** - HTTP API on port 37777 with web viewer UI and 10 search endpoints, managed by Bun
-4. **SQLite Database** - Stores sessions, observations, summaries
-5. **mem-search Skill** - Natural language queries with progressive disclosure
-6. **Chroma Vector Database** - Hybrid semantic + keyword search for intelligent context retrieval
-
-See [Architecture Overview](https://docs.claude-mem.ai/architecture/overview) for details.
-
----
-
-## MCP Search Tools
-
-Claude-Mem provides intelligent memory search through **4 MCP tools** following a token-efficient **3-layer workflow pattern**:
-
-**The 3-Layer Workflow:**
-
-1. **`search`** - Get compact index with IDs (~50-100 tokens/result)
-2. **`timeline`** - Get chronological context around interesting results
-3. **`get_observations`** - Fetch full details ONLY for filtered IDs (~500-1,000 tokens/result)
-
-**How It Works:**
-- Claude uses MCP tools to search your memory
-- Start with `search` to get an index of results
-- Use `timeline` to see what was happening around specific observations
-- Use `get_observations` to fetch full details for relevant IDs
-- **~10x token savings** by filtering before fetching details
-
-**Available MCP Tools:**
-
-1. **`search`** - Search memory index with full-text queries, filters by type/date/project
-2. **`timeline`** - Get chronological context around a specific observation or query
-3. **`get_observations`** - Fetch full observation details by IDs (always batch multiple IDs)
-4. **`__IMPORTANT`** - Workflow documentation (always visible to Claude)
-
-**Example Usage:**
-
-```typescript
-// Step 1: Search for index
-search(query="authentication bug", type="bugfix", limit=10)
-
-// Step 2: Review index, identify relevant IDs (e.g., #123, #456)
-
-// Step 3: Fetch full details
-get_observations(ids=[123, 456])
-```
-
-See [Search Tools Guide](https://docs.claude-mem.ai/usage/search-tools) for detailed examples.
-
----
-
-## Beta Features
-
-Claude-Mem offers a **beta channel** with experimental features like **Endless Mode** (biomimetic memory architecture for extended sessions). Switch between stable and beta versions from the web viewer UI at http://localhost:37777 → Settings.
-
-See **[Beta Features Documentation](https://docs.claude-mem.ai/beta-features)** for details on Endless Mode and how to try it.
-
----
-
-## System Requirements
-
-- **Node.js**: 18.0.0 or higher
-- **Claude Code**: Latest version with plugin support
-- **Bun**: JavaScript runtime and process manager (auto-installed if missing)
-- **uv**: Python package manager for vector search (auto-installed if missing)
-- **SQLite 3**: For persistent storage (bundled)
-
----
-
-## Configuration
-
-Settings are managed in `~/.claude-mem/settings.json` (auto-created with defaults on first run). Configure AI model, worker port, data directory, log level, and context injection settings.
-
-See the **[Configuration Guide](https://docs.claude-mem.ai/configuration)** for all available settings and examples.
-
----
-
-## LM Studio Support (Local Models)
-
-Claude-Mem supports local model inference via [LM Studio](https://lmstudio.ai/), enabling zero-cost observation processing with your own GPU.
-
-### Recommended Model: IBM Granite
-
-**`ibm/granite-4-h-tiny`** is recommended for observation processing:
-
-- **Fast inference** - 1B active parameters, optimized for speed
-- **1M context window** - Handles long tool outputs without truncation
-- **Structured data specialist** - Excellent at extracting observations from JSON/code
-- **Low VRAM** - Runs on most consumer GPUs
-
-### Configuration
-
-1. Start LM Studio and load a model (e.g., Granite)
-2. Enable the local server (default: `http://localhost:1234/v1`)
-3. Configure claude-mem:
-
-```bash
-curl -X POST http://127.0.0.1:37777/api/settings \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "CLAUDE_MEM_PROVIDER": "lmstudio",
-    "CLAUDE_MEM_LMSTUDIO_MODEL": "ibm/granite-4-h-tiny"
-  }'
-```
-
-Or edit `~/.claude-mem/settings.json`:
-
-```json
-{
-  "CLAUDE_MEM_PROVIDER": "lmstudio",
-  "CLAUDE_MEM_LMSTUDIO_BASE_URL": "http://localhost:1234/v1",
-  "CLAUDE_MEM_LMSTUDIO_MODEL": "ibm/granite-4-h-tiny"
-}
-```
-
-### Benefits
-
-- **Zero API costs** - All processing runs locally
-- **Faster inference** - No network latency
-- **Works offline** - No internet required
-- **Privacy** - Observations never leave your machine
-
----
-
-## Local Development
-
-For plugin development, use `--plugin-dir` to load directly from your local repo instead of installing to the marketplace:
-
-```bash
-# Clone and build
-git clone https://github.com/bpd1069/claude-mem.git
-cd claude-mem
-npm install
-npm run build
-
-# Run Claude Code with local plugin
-cc --plugin-dir ./plugin
-```
-
-### Development Workflow
-
-```bash
-# Build and restart worker after changes
-npm run build-and-sync
-
-# Check worker status
-curl http://127.0.0.1:37777/api/readiness
-
-# View logs
-npm run worker:logs
-```
-
-This approach:
-- Avoids marketplace installation/sync overhead
-- Enables rapid iteration with `build-and-sync`
-- Uses `CLAUDE_PLUGIN_ROOT` env var for dynamic path resolution
-
----
-
-## Development
-
-See the **[Development Guide](https://docs.claude-mem.ai/development)** for build instructions, testing, and contribution workflow.
-
----
-
-## Troubleshooting
-
-If experiencing issues, describe the problem to Claude and the troubleshoot skill will automatically diagnose and provide fixes.
-
-See the **[Troubleshooting Guide](https://docs.claude-mem.ai/troubleshooting)** for common issues and solutions.
-
----
-
-## Bug Reports
-
-Create comprehensive bug reports with the automated generator:
-
-```bash
-cd ~/.claude-mem/plugin  # or your installation directory
-npm run bug-report
-```
-
-## Fork Modifications (bpd1069)
-
-This fork includes the following modifications from the upstream [thedotmack/claude-mem](https://github.com/thedotmack/claude-mem):
+## Fork Modifications
 
 ### Standalone Installation Support
 
-Path resolution now supports running claude-mem without Claude Code marketplace installation:
+Path resolution supports running claude-mem without Claude Code marketplace:
 
 | Priority | Location | Purpose |
 |----------|----------|---------|
@@ -355,7 +18,7 @@ Path resolution now supports running claude-mem without Claude Code marketplace 
 | 2 | `~/.claude-mem/plugin/` | Standalone installation |
 | 3 | `~/.claude/plugins/marketplaces/bpd1069/` | Marketplace fallback |
 
-**Standalone Installation:**
+**Installation:**
 
 ```bash
 # Build from source
@@ -374,14 +37,11 @@ cp -r plugin/ui ~/.claude-mem/plugin/
 cd ~/.claude-mem && bun plugin/scripts/worker-service.cjs start
 ```
 
-This enables:
-- Development without marketplace dependency
-- Cursor IDE integration without Claude Code
-- Custom deployment configurations
+---
 
 ### Cursor IDE Integration
 
-To use claude-mem with Cursor IDE, configure both the MCP server and hooks:
+Configure MCP server and hooks for Cursor:
 
 **1. MCP Server** (`~/.cursor/mcp.json`):
 ```json
@@ -420,28 +80,23 @@ To use claude-mem with Cursor IDE, configure both the MCP server and hooks:
 }
 ```
 
-**Note:** Uses `bun` runtime (not `node`) due to `bun:sqlite` dependency.
-
 Replace `YOUR_USER` with your username. Restart Cursor after creating these files.
 
-**What each hook does:**
+**Note:** Uses `bun` runtime (not `node`) due to `bun:sqlite` dependency.
+
 | Hook | Purpose |
 |------|---------|
-| `beforeSubmitPrompt` | Initialize session, inject context from past sessions |
-| `afterMCPExecution` | Capture MCP tool usage as observations |
-| `afterShellExecution` | Capture shell commands as observations |
-| `afterFileEdit` | Capture file edits as observations |
-| `stop` | Generate session summary when conversation ends |
+| `beforeSubmitPrompt` | Initialize session, inject context |
+| `afterMCPExecution` | Capture MCP tool usage |
+| `afterShellExecution` | Capture shell commands |
+| `afterFileEdit` | Capture file edits |
+| `stop` | Generate session summary |
+
+---
 
 ### LM Studio / Local Model Support
 
-This fork includes support for local LLM inference via [LM Studio](https://lmstudio.ai/):
-
-- **Provider**: `lmstudio` in settings
-- **Endpoint**: Configurable local server URL (default: `http://localhost:1234/v1`)
-- **Models**: Any model loaded in LM Studio
-
-Configure via the web UI at `http://localhost:37777` or in `~/.claude-mem/settings.json`:
+Local LLM inference via [LM Studio](https://lmstudio.ai/):
 
 ```json
 {
@@ -451,51 +106,104 @@ Configure via the web UI at `http://localhost:37777` or in `~/.claude-mem/settin
 }
 ```
 
-*These modifications are shared in accordance with the AGPL-3.0 license.*
+Configure via web UI at `http://localhost:37777` or in `~/.claude-mem/settings.json`.
 
 ---
 
-## Contributing
+### sqlite-vec Vector Backend
 
-Contributions are welcome! Please:
+Alternative vector backend using [sqlite-vec](https://github.com/asg017/sqlite-vec):
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes with tests
-4. Update documentation
-5. Submit a Pull Request
+- **No Python dependency** - Pure SQLite
+- **Windows support** - No console popup issues
+- **Portable** - Single database file
+- **Git-LFS export** - Version control your memory
 
-See [Development Guide](https://docs.claude-mem.ai/development) for contribution workflow.
+```json
+{
+  "VECTOR_BACKEND": "sqlite-vec",
+  "EMBEDDING_PROVIDER": "lmstudio",
+  "EMBEDDING_MODEL": "text-embedding-nomic-embed-text-v1.5",
+  "EMBEDDING_DIMENSIONS": "768"
+}
+```
+
+| Backend | Description |
+|---------|-------------|
+| `chroma` | ChromaDB via MCP (default) |
+| `sqlite-vec` | Local sqlite-vec database |
+| `none` | Disable vector search |
+
+---
+
+### Git-LFS Export
+
+Export vector database to a dedicated git repository for backup and versioning.
+
+```json
+{
+  "GIT_LFS_ENABLED": "true",
+  "GIT_LFS_REMOTE": "origin",
+  "GIT_LFS_REMOTE_URL": "https://github.com/username/claude-mem-vectors.git",
+  "GIT_LFS_AUTO_PUSH": "true",
+  "GIT_LFS_IDLE_PUSH_SECONDS": "300"
+}
+```
+
+**CLI Commands:**
+
+```bash
+claude-mem git-sync init --remote <git-url>
+claude-mem git-sync status
+claude-mem git-sync push
+claude-mem git-sync pull
+```
+
+**Export Formats:**
+
+```bash
+claude-mem export --format=sqlite   # Vector database only
+claude-mem export --format=full     # Complete database with vectors
+claude-mem export --format=json     # JSON with base64 vectors
+claude-mem export --format=json --project=myproject  # Filter by project
+```
+
+---
+
+## Milestones
+
+### Current (v6.5.x)
+
+- [x] Standalone installation (`~/.claude-mem/plugin/`)
+- [x] Cursor IDE integration (MCP + Hooks)
+- [x] LM Studio / local model support
+- [x] sqlite-vec vector backend
+- [x] Git-LFS export with auto-push
+
+### Resurrection Ship (Future)
+
+Team memory sharing via dedicated vector repositories, separate from codebases.
+
+**Concept:** Like the [Resurrection Ship](https://en.battlestarwikiclone.org/wiki/Resurrection_Ship) that extends resurrection range across the Cylon fleet, shared vector repos extend memory across teams and machines.
+
+- [ ] `GIT_LFS_TEAM_REPOS` - Connect to team memory repositories
+- [ ] `attachRemote()` - Mount team vector databases
+- [ ] `queryFederated()` - Search across all connected repos
+- [ ] Cross-project context injection
+
+```
+Team Member A ──┐
+                ├──► Shared Vector Repo ◄──── Federation queries
+Team Member B ──┘         │
+                          ▼
+                    Local sqlite-vec
+```
 
 ---
 
 ## License
 
-This project is licensed under the **GNU Affero General Public License v3.0** (AGPL-3.0).
+AGPL-3.0 - Modifications shared in accordance with upstream license.
 
-Copyright (C) 2025 Alex Newman (@thedotmack). All rights reserved.
-
-See the [LICENSE](LICENSE) file for full details.
-
-**What This Means:**
-
-- You can use, modify, and distribute this software freely
-- If you modify and deploy on a network server, you must make your source code available
-- Derivative works must also be licensed under AGPL-3.0
-- There is NO WARRANTY for this software
-
-**Note on Ragtime**: The `ragtime/` directory is licensed separately under the **PolyForm Noncommercial License 1.0.0**. See [ragtime/LICENSE](ragtime/LICENSE) for details.
-
----
-
-## Support
-
-- **Upstream Repository**: [github.com/thedotmack/claude-mem](https://github.com/thedotmack/claude-mem)
-- **This Fork**: [github.com/bpd1069/claude-mem](https://github.com/bpd1069/claude-mem)
-- **Documentation**: [docs/](docs/)
-- **Upstream Issues**: [GitHub Issues](https://github.com/thedotmack/claude-mem/issues)
-- **Original Author**: Alex Newman ([@thedotmack](https://github.com/thedotmack))
-
----
-
-**Built with Claude Agent SDK** | **Powered by Claude Code** | **Made with TypeScript**
+**Upstream:** [thedotmack/claude-mem](https://github.com/thedotmack/claude-mem)  
+**This Fork:** [bpd1069/claude-mem](https://github.com/bpd1069/claude-mem)
