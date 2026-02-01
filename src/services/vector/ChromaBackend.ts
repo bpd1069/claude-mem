@@ -533,6 +533,92 @@ export class ChromaBackend implements VectorBackend {
     return results;
   }
 
+  /**
+   * Legacy query method for backwards compatibility
+   * @deprecated Use query() instead - returns VectorQueryResult[]
+   */
+  async queryChroma(
+    query: string,
+    limit: number,
+    whereFilter?: Record<string, any>
+  ): Promise<{ ids: number[]; distances: number[]; metadatas: any[] }> {
+    if (this.disabled) {
+      return { ids: [], distances: [], metadatas: [] };
+    }
+
+    await this.ensureConnection();
+
+    if (!this.client) {
+      throw new Error('Chroma client not initialized');
+    }
+
+    const whereStringified = whereFilter && Object.keys(whereFilter).length > 0
+      ? JSON.stringify(whereFilter)
+      : undefined;
+
+    let result;
+    try {
+      result = await this.client.callTool({
+        name: 'chroma_query_documents',
+        arguments: {
+          collection_name: this.collectionName,
+          query_texts: [query],
+          n_results: limit,
+          include: ['documents', 'metadatas', 'distances'],
+          where: whereStringified
+        }
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const isConnectionError =
+        errorMessage.includes('Not connected') ||
+        errorMessage.includes('Connection closed') ||
+        errorMessage.includes('MCP error -32000');
+
+      if (isConnectionError) {
+        this.connected = false;
+        this.client = null;
+        throw new Error(`Chroma query failed - connection lost: ${errorMessage}`);
+      }
+      throw error;
+    }
+
+    const resultText = result.content[0]?.text || '';
+    let parsed: any;
+    try {
+      parsed = JSON.parse(resultText);
+    } catch {
+      return { ids: [], distances: [], metadatas: [] };
+    }
+
+    // Return raw format expected by legacy callers
+    const docIds = parsed.ids?.[0] || [];
+    const distances = parsed.distances?.[0] || [];
+    const metadatas = parsed.metadatas?.[0] || [];
+
+    // Extract sqlite_ids and dedupe
+    const ids: number[] = [];
+    const deduped: { distance: number; meta: any }[] = [];
+    const seenSqliteIds = new Set<number>();
+
+    for (let i = 0; i < metadatas.length; i++) {
+      const meta = metadatas[i] || {};
+      const sqliteId = meta.sqlite_id;
+
+      if (!sqliteId || seenSqliteIds.has(sqliteId)) continue;
+      seenSqliteIds.add(sqliteId);
+
+      ids.push(sqliteId);
+      deduped.push({ distance: distances[i] || 0, meta });
+    }
+
+    return {
+      ids,
+      distances: deduped.map(d => d.distance),
+      metadatas: deduped.map(d => d.meta)
+    };
+  }
+
   private async getExistingChromaIds(): Promise<{
     observations: Set<number>;
     summaries: Set<number>;
