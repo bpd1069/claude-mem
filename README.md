@@ -213,24 +213,18 @@ Team memory sharing via dedicated vector repositories, separate from codebases.
 
 Federation uses geometric constraints for stability and performance:
 
-```
-        Local (1.0)
-           /|\
-          / | \
-         /  |  \
-   R1 ──/───┼───\── R2
-  (φ⁻¹)     |    (φ⁻²)
-         \  |  /
-          \ | /
-           \|/
-        R3 (φ⁻³)
+<p align="center">
+  <img src="docs/federation-tetrahedron.svg" alt="Federation Tetrahedron Model" width="300">
+</p>
 
-Priority weights (golden ratio φ ≈ 1.618):
-  Local:    1.000
-  Remote 1: 0.618  (1/φ)
-  Remote 2: 0.382  (1/φ²)
-  Remote 3: 0.236  (1/φ³)
-```
+| Node | Priority | Weight |
+|------|----------|--------|
+| Local | 1.0 | Highest |
+| Remote 1 | φ⁻¹ | 0.618 |
+| Remote 2 | φ⁻² | 0.382 |
+| Remote 3 | φ⁻³ | 0.236 |
+
+*Golden ratio φ ≈ 1.618*
 
 **Constraints:**
 - Maximum 3 remote databases (tetrahedron = 4 vertices)
