@@ -14,7 +14,6 @@
 import { logger } from '../../../utils/logger.js';
 import { parseObservations, parseSummary, type ParsedObservation, type ParsedSummary } from '../../../sdk/parser.js';
 import { updateCursorContextForProject } from '../../integrations/CursorHooksInstaller.js';
-import { updateFolderClaudeMdFiles } from '../../../utils/claude-md-utils.js';
 import { getWorkerPort } from '../../../shared/worker-utils.js';
 import type { ActiveSession } from '../../worker-types.js';
 import type { DatabaseManager } from '../DatabaseManager.js';
@@ -213,24 +212,7 @@ async function syncAndBroadcastObservations(
     });
   }
 
-  // Update folder CLAUDE.md files for touched folders (fire-and-forget)
-  // This runs per-observation batch to ensure folders are updated as work happens
-  const allFilePaths: string[] = [];
-  for (const obs of observations) {
-    allFilePaths.push(...(obs.files_modified || []));
-    allFilePaths.push(...(obs.files_read || []));
-  }
-
-  if (allFilePaths.length > 0) {
-    updateFolderClaudeMdFiles(
-      allFilePaths,
-      session.project,
-      getWorkerPort(),
-      projectRoot
-    ).catch(error => {
-      logger.warn('FOLDER_INDEX', 'CLAUDE.md update failed (non-critical)', { project: session.project }, error as Error);
-    });
-  }
+  // NOTE: CLAUDE.md writes removed - use MCP tools for memory access
 }
 
 /**

@@ -88,28 +88,13 @@ export function replaceTaggedContent(existingContent: string, newContent: string
  * Write CLAUDE.md file to folder with atomic writes.
  * Creates directory structure if needed.
  *
+ * @deprecated CLAUDE.md writes removed - use MCP tools for memory access
  * @param folderPath - Absolute path to the folder
  * @param newContent - Content to write inside tags
  */
 export function writeClaudeMdToFolder(folderPath: string, newContent: string): void {
-  const claudeMdPath = path.join(folderPath, 'CLAUDE.md');
-  const tempFile = `${claudeMdPath}.tmp`;
-
-  // Ensure directory exists
-  mkdirSync(folderPath, { recursive: true });
-
-  // Read existing content if file exists
-  let existingContent = '';
-  if (existsSync(claudeMdPath)) {
-    existingContent = readFileSync(claudeMdPath, 'utf-8');
-  }
-
-  // Replace only tagged content, preserve user content
-  const finalContent = replaceTaggedContent(existingContent, newContent);
-
-  // Atomic write: temp file + rename
-  writeFileSync(tempFile, finalContent);
-  renameSync(tempFile, claudeMdPath);
+  // Deprecated: CLAUDE.md writes removed - use MCP tools for memory
+  return;
 }
 
 /**
@@ -247,9 +232,7 @@ function isProjectRoot(folderPath: string): boolean {
  * Update CLAUDE.md files for folders containing the given files.
  * Fetches timeline from worker API and writes formatted content.
  *
- * NOTE: Project root folders (containing .git) are excluded to preserve
- * user-managed root CLAUDE.md files. Only subfolder CLAUDE.md files are auto-updated.
- *
+ * @deprecated CLAUDE.md writes removed - use MCP tools for memory access
  * @param filePaths - Array of absolute file paths (modified or read)
  * @param project - Project identifier for API query
  * @param port - Worker API port
@@ -260,77 +243,6 @@ export async function updateFolderClaudeMdFiles(
   port: number,
   projectRoot?: string
 ): Promise<void> {
-  // Load settings to get configurable observation limit
-  const settings = SettingsDefaultsManager.loadFromFile(SETTINGS_PATH);
-  const limit = parseInt(settings.CLAUDE_MEM_CONTEXT_OBSERVATIONS, 10) || 50;
-
-  // Extract unique folder paths from file paths
-  const folderPaths = new Set<string>();
-  for (const filePath of filePaths) {
-    if (!filePath || filePath === '') continue;
-    // VALIDATE PATH BEFORE PROCESSING
-    if (!isValidPathForClaudeMd(filePath, projectRoot)) {
-      logger.debug('FOLDER_INDEX', 'Skipping invalid file path', {
-        filePath,
-        reason: 'Failed path validation'
-      });
-      continue;
-    }
-    // Resolve relative paths to absolute using projectRoot
-    let absoluteFilePath = filePath;
-    if (projectRoot && !path.isAbsolute(filePath)) {
-      absoluteFilePath = path.join(projectRoot, filePath);
-    }
-    const folderPath = path.dirname(absoluteFilePath);
-    if (folderPath && folderPath !== '.' && folderPath !== '/') {
-      // Skip project root - root CLAUDE.md should remain user-managed
-      if (isProjectRoot(folderPath)) {
-        logger.debug('FOLDER_INDEX', 'Skipping project root CLAUDE.md', { folderPath });
-        continue;
-      }
-      folderPaths.add(folderPath);
-    }
-  }
-
-  if (folderPaths.size === 0) return;
-
-  logger.debug('FOLDER_INDEX', 'Updating CLAUDE.md files', {
-    project,
-    folderCount: folderPaths.size
-  });
-
-  // Process each folder
-  for (const folderPath of folderPaths) {
-    try {
-      // Fetch timeline via existing API
-      const host = getWorkerHost();
-      const response = await fetch(
-        `http://${host}:${port}/api/search/by-file?filePath=${encodeURIComponent(folderPath)}&limit=${limit}&project=${encodeURIComponent(project)}&isFolder=true`
-      );
-
-      if (!response.ok) {
-        logger.error('FOLDER_INDEX', 'Failed to fetch timeline', { folderPath, status: response.status });
-        continue;
-      }
-
-      const result = await response.json();
-      if (!result.content?.[0]?.text) {
-        logger.debug('FOLDER_INDEX', 'No content for folder', { folderPath });
-        continue;
-      }
-
-      const formatted = formatTimelineForClaudeMd(result.content[0].text);
-      writeClaudeMdToFolder(folderPath, formatted);
-
-      logger.debug('FOLDER_INDEX', 'Updated CLAUDE.md', { folderPath });
-    } catch (error) {
-      // Fire-and-forget: log warning but don't fail
-      const err = error as Error;
-      logger.error('FOLDER_INDEX', 'Failed to update CLAUDE.md', {
-        folderPath,
-        errorMessage: err.message,
-        errorStack: err.stack
-      });
-    }
-  }
+  // Deprecated: CLAUDE.md writes removed - use MCP tools for memory
+  return;
 }

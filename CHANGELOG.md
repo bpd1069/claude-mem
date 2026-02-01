@@ -14,7 +14,6 @@ This release eliminates the annoying console window popups that Windows users ex
 
 ### Changed
 - **Chroma temporarily disabled on Windows** - Vector search is disabled on Windows while we migrate to a popup-free architecture. Keyword search and all other memory features continue to work. A follow-up release will re-enable Chroma.
-- **Slash command discoverability** - Added YAML frontmatter to `/do` and `/make-plan` commands
 
 ### Technical Details
 - Uses WMIC for detached process spawning on Windows
@@ -50,15 +49,6 @@ This release contains a significant refactoring of `worker-service.ts`, removing
 ## [v9.0.4] - 2026-01-10
 
 ## What's New
-
-This release adds the `/do` and `/make-plan` development commands to the plugin distribution, making them available to all users who install the plugin from the marketplace.
-
-### Features
-
-- **Development Commands Now Distributed with Plugin** (#666)
-  - `/do` command - Execute tasks with structured workflow
-  - `/make-plan` command - Create detailed implementation plans
-  - Commands now available at `plugin/commands/` for all users
 
 ### Documentation
 
