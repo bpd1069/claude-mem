@@ -1,5 +1,11 @@
 # claude-mem (bpd1069 fork)
 
+> **~4k tokens to access ~400k tokens of work.**
+>
+> Two compression strategies:
+> - **By reference** — inject a semantic index, fetch full observations on-demand
+> - **By vectorization** — retrieve relevant memories via similarity search
+
 Fork of [thedotmack/claude-mem](https://github.com/thedotmack/claude-mem) with additional features for standalone deployment, Cursor IDE integration, and alternative vector backends.
 
 **For base documentation, see upstream:** [github.com/thedotmack/claude-mem](https://github.com/thedotmack/claude-mem)
