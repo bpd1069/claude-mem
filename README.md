@@ -379,6 +379,24 @@ This enables:
 - Cursor IDE integration without Claude Code
 - Custom deployment configurations
 
+### LM Studio / Local Model Support
+
+This fork includes support for local LLM inference via [LM Studio](https://lmstudio.ai/):
+
+- **Provider**: `lmstudio` in settings
+- **Endpoint**: Configurable local server URL (default: `http://localhost:1234/v1`)
+- **Models**: Any model loaded in LM Studio
+
+Configure via the web UI at `http://localhost:37777` or in `~/.claude-mem/settings.json`:
+
+```json
+{
+  "AI_PROVIDER": "lmstudio",
+  "LMSTUDIO_BASE_URL": "http://localhost:1234/v1",
+  "LMSTUDIO_MODEL": "your-model-name"
+}
+```
+
 *These modifications are shared in accordance with the AGPL-3.0 license.*
 
 ---
