@@ -251,6 +251,30 @@ Federation uses geometric constraints for stability and performance:
 }
 ```
 
+#### Schema Adapters
+
+External databases have varying schemas. Adapters transform external formats to internal without modifying our schema:
+
+```typescript
+// Register adapter for external DB with different field names
+registry.register({
+  id: 'team-memory',
+  url: 'https://memory.team.com',
+  fields: {
+    id: 'observation_id',      // their field -> our field
+    title: 'summary',
+    narrative: 'content',
+    timestamp: 'metadata.created_at',  // supports dot notation
+  },
+  transforms: {
+    timestamp: 'iso8601',      // convert ISO to epoch
+    embedding: 'base64',       // decode base64 vectors
+  }
+});
+```
+
+**Principle:** Mutable external schemas, immutable internal schema.
+
 **Roadmap:**
 - [ ] `GIT_LFS_TEAM_REPOS` - Connect to team memory repositories
 - [ ] `attachRemote()` - Mount team vector databases
