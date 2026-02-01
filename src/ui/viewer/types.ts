@@ -90,6 +90,14 @@ export interface Settings {
   // Feature Toggles
   CLAUDE_MEM_CONTEXT_SHOW_LAST_SUMMARY?: string;
   CLAUDE_MEM_CONTEXT_SHOW_LAST_MESSAGE?: string;
+
+  // Federation (Tetrahedron Model)
+  FEDERATION_MAX_REMOTES?: string;
+  FEDERATION_QUERY_TIMEOUT_MS?: string;
+  FEDERATION_PRIORITY_DECAY?: string;
+  FEDERATION_ALLOW_LIST?: string;
+  FEDERATION_READ_ONLY?: string;
+  FEDERATION_TOTAL_TIMEOUT_MS?: string;
 }
 
 export interface WorkerStats {

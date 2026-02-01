@@ -587,6 +587,97 @@ export function ContextSettingsModal({
                 />
               </div>
             </CollapsibleSection>
+
+            {/* Section 5: Federation */}
+            <CollapsibleSection
+              title="Federation"
+              description="Connect to remote memory databases"
+              defaultOpen={false}
+            >
+              <div className="federation-diagram">
+                <pre style={{ fontSize: '10px', lineHeight: '1.2', color: 'var(--text-secondary)', margin: '0 0 12px 0' }}>
+{`    Local (1.0)
+       /|\\
+      / | \\
+     /  |  \\
+R1 ─/───┼───\\─ R2
+(.618)  |  (.382)
+        R3
+      (.236)`}
+                </pre>
+              </div>
+              <FormField
+                label="Max Remotes"
+                tooltip="Maximum remote databases (tetrahedron: 3 max)"
+              >
+                <input
+                  type="number"
+                  min="0"
+                  max="3"
+                  value={formState.FEDERATION_MAX_REMOTES || '3'}
+                  onChange={(e) => updateSetting('FEDERATION_MAX_REMOTES', e.target.value)}
+                />
+              </FormField>
+              <FormField
+                label="Priority Decay"
+                tooltip="How to weight results from remote databases"
+              >
+                <select
+                  value={formState.FEDERATION_PRIORITY_DECAY || 'golden'}
+                  onChange={(e) => updateSetting('FEDERATION_PRIORITY_DECAY', e.target.value)}
+                >
+                  <option value="golden">Golden Ratio (φ⁻ⁿ)</option>
+                  <option value="exponential">Exponential (0.5ⁿ)</option>
+                  <option value="linear">Linear (1 - 0.25n)</option>
+                </select>
+              </FormField>
+              <FormField
+                label="Query Timeout (ms)"
+                tooltip="Timeout per remote database query"
+              >
+                <input
+                  type="number"
+                  min="1000"
+                  max="30000"
+                  step="1000"
+                  value={formState.FEDERATION_QUERY_TIMEOUT_MS || '5000'}
+                  onChange={(e) => updateSetting('FEDERATION_QUERY_TIMEOUT_MS', e.target.value)}
+                />
+              </FormField>
+              <FormField
+                label="Total Timeout (ms)"
+                tooltip="Total budget across all remote queries"
+              >
+                <input
+                  type="number"
+                  min="5000"
+                  max="60000"
+                  step="1000"
+                  value={formState.FEDERATION_TOTAL_TIMEOUT_MS || '15000'}
+                  onChange={(e) => updateSetting('FEDERATION_TOTAL_TIMEOUT_MS', e.target.value)}
+                />
+              </FormField>
+              <FormField
+                label="Allow List"
+                tooltip="Comma-separated allowed remote URLs (empty = allow all)"
+              >
+                <input
+                  type="text"
+                  value={formState.FEDERATION_ALLOW_LIST || ''}
+                  onChange={(e) => updateSetting('FEDERATION_ALLOW_LIST', e.target.value)}
+                  placeholder="https://memory.team.com, ..."
+                />
+              </FormField>
+              <div className="toggle-group" style={{ marginTop: '8px' }}>
+                <ToggleSwitch
+                  id="federation-read-only"
+                  label="Read-only remotes"
+                  description="Remotes are read-only (recommended for security)"
+                  checked={formState.FEDERATION_READ_ONLY !== 'false'}
+                  onChange={(checked) => updateSetting('FEDERATION_READ_ONLY', checked ? 'true' : 'false')}
+                />
+              </div>
+            </CollapsibleSection>
           </div>
         </div>
 
