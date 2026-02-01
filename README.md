@@ -1,8 +1,11 @@
 # claude-mem (bpd1069 fork)
 
+<p align="center">
+  <img src="docs/compression-ratio.svg" alt="100:1 compression ratio" width="500">
+</p>
+
 > **~4k tokens to access ~400k tokens of work.**
 >
-> Two compression strategies:
 > - **By reference** — inject a semantic index, fetch full observations on-demand
 > - **By vectorization** — retrieve relevant memories via similarity search
 
