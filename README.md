@@ -209,18 +209,50 @@ Team memory sharing via dedicated vector repositories, separate from codebases.
 
 **Concept:** Like the [Resurrection Ship](https://en.battlestarwikiclone.org/wiki/Resurrection_Ship) that extends resurrection range across the Cylon fleet, shared vector repos extend memory across teams and machines.
 
-- [ ] `GIT_LFS_TEAM_REPOS` - Connect to team memory repositories
-- [ ] `attachRemote()` - Mount team vector databases
-- [ ] `queryFederated()` - Search across all connected repos
-- [ ] Cross-project context injection
+#### Tetrahedron Model
+
+Federation uses geometric constraints for stability and performance:
 
 ```
-Team Member A ──┐
-                ├──► Shared Vector Repo ◄──── Federation queries
-Team Member B ──┘         │
-                          ▼
-                    Local sqlite-vec
+        Local (1.0)
+           /|\
+          / | \
+         /  |  \
+   R1 ──/───┼───\── R2
+  (φ⁻¹)     |    (φ⁻²)
+         \  |  /
+          \ | /
+           \|/
+        R3 (φ⁻³)
+
+Priority weights (golden ratio φ ≈ 1.618):
+  Local:    1.000
+  Remote 1: 0.618  (1/φ)
+  Remote 2: 0.382  (1/φ²)
+  Remote 3: 0.236  (1/φ³)
 ```
+
+**Constraints:**
+- Maximum 3 remote databases (tetrahedron = 4 vertices)
+- 5s timeout per remote, 15s total budget
+- Remotes are read-only (security)
+- Optional allow-list for remote URLs
+
+```json
+{
+  "FEDERATION_MAX_REMOTES": "3",
+  "FEDERATION_QUERY_TIMEOUT_MS": "5000",
+  "FEDERATION_PRIORITY_DECAY": "golden",
+  "FEDERATION_ALLOW_LIST": "https://memory.team.com",
+  "FEDERATION_READ_ONLY": "true"
+}
+```
+
+**Roadmap:**
+- [ ] `GIT_LFS_TEAM_REPOS` - Connect to team memory repositories
+- [ ] `attachRemote()` - Mount team vector databases
+- [ ] `queryFederated()` - Search across all connected repos with priority weighting
+- [ ] Cross-project context injection
 
 ---
 

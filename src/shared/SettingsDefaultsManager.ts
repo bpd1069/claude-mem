@@ -66,6 +66,13 @@ export interface SettingsDefaults {
   GIT_LFS_AUTO_PUSH: string;
   GIT_LFS_IDLE_PUSH_SECONDS: string;
   GIT_LFS_TEAM_REPOS: string;  // Future: comma-separated list of team memory repos
+  // Federation Constraints (Tetrahedron Model: local + 3 remotes max)
+  FEDERATION_MAX_REMOTES: string;  // Hard limit: 3 (forms tetrahedron with local)
+  FEDERATION_QUERY_TIMEOUT_MS: string;  // Per-remote timeout
+  FEDERATION_PRIORITY_DECAY: string;  // 'golden' | 'exponential' | 'linear'
+  FEDERATION_ALLOW_LIST: string;  // Comma-separated allowed remote URLs (security)
+  FEDERATION_READ_ONLY: string;  // Remotes are read-only by default
+  FEDERATION_TOTAL_TIMEOUT_MS: string;  // Total query budget across all remotes
 }
 
 export class SettingsDefaultsManager {
@@ -126,6 +133,15 @@ export class SettingsDefaultsManager {
     GIT_LFS_AUTO_PUSH: 'false',  // Manual push by default
     GIT_LFS_IDLE_PUSH_SECONDS: '300',  // 5 minutes idle before auto-push
     GIT_LFS_TEAM_REPOS: '',  // Future: comma-separated list of team memory repos to sync
+    // Federation Constraints (Tetrahedron Model: local + 3 remotes max)
+    // Geometric rationale: tetrahedron is minimal stable 3D structure
+    // Priority uses golden ratio decay: 1.0, 0.618, 0.382, 0.236
+    FEDERATION_MAX_REMOTES: '3',  // Hard limit (local + 3 = tetrahedron vertices)
+    FEDERATION_QUERY_TIMEOUT_MS: '5000',  // 5s per-remote timeout
+    FEDERATION_PRIORITY_DECAY: 'golden',  // φ decay: 1/φ^n where φ=1.618
+    FEDERATION_ALLOW_LIST: '',  // Empty = allow all; set URLs for security
+    FEDERATION_READ_ONLY: 'true',  // Remotes are read-only (security)
+    FEDERATION_TOTAL_TIMEOUT_MS: '15000',  // 15s total budget (3 remotes × 5s)
   };
 
   /**
