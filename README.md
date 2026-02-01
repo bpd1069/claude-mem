@@ -8,6 +8,27 @@ Fork of [thedotmack/claude-mem](https://github.com/thedotmack/claude-mem) with a
 
 ## Fork Modifications
 
+### Simplified Memory Access
+
+This fork removes automatic CLAUDE.md file generation. Memory is accessed via MCP tools only:
+
+```
+mcp__plugin_claude-mem_mcp-search__search      # Search observations
+mcp__plugin_claude-mem_mcp-search__timeline    # Get context around results
+mcp__plugin_claude-mem_mcp-search__get_observations  # Fetch full details
+```
+
+**Removed:**
+- Auto-generated `<claude-mem-context>` sections in CLAUDE.md files
+- `/do` and `/make-plan` planner commands (separation of concerns)
+
+**Cleanup existing auto-generated content:**
+```bash
+bun scripts/regenerate-claude-md.ts --clean
+```
+
+---
+
 ### Standalone Installation Support
 
 Path resolution supports running claude-mem without Claude Code marketplace:
@@ -172,13 +193,15 @@ claude-mem export --format=json --project=myproject  # Filter by project
 
 ## Milestones
 
-### Current (v6.5.x)
+### Current (v9.0.x)
 
 - [x] Standalone installation (`~/.claude-mem/plugin/`)
 - [x] Cursor IDE integration (MCP + Hooks)
 - [x] LM Studio / local model support
 - [x] sqlite-vec vector backend
 - [x] Git-LFS export with auto-push
+- [x] Removed CLAUDE.md auto-generation (MCP tools only)
+- [x] Dynamic marketplace org detection in sync script
 
 ### Resurrection Ship (Future)
 
