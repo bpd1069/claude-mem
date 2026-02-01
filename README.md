@@ -379,6 +379,58 @@ This enables:
 - Cursor IDE integration without Claude Code
 - Custom deployment configurations
 
+### Cursor IDE Integration
+
+To use claude-mem with Cursor IDE, configure both the MCP server and hooks:
+
+**1. MCP Server** (`~/.cursor/mcp.json`):
+```json
+{
+  "mcpServers": {
+    "claude-mem": {
+      "command": "node",
+      "args": ["/home/YOUR_USER/.claude-mem/plugin/scripts/mcp-server.cjs"]
+    }
+  }
+}
+```
+
+**2. Hooks** (`~/.cursor/hooks.json`):
+```json
+{
+  "version": 1,
+  "hooks": {
+    "beforeSubmitPrompt": [
+      { "command": "node \"/home/YOUR_USER/.claude-mem/plugin/scripts/worker-service.cjs\" hook cursor session-init" },
+      { "command": "node \"/home/YOUR_USER/.claude-mem/plugin/scripts/worker-service.cjs\" hook cursor context" }
+    ],
+    "afterMCPExecution": [
+      { "command": "node \"/home/YOUR_USER/.claude-mem/plugin/scripts/worker-service.cjs\" hook cursor observation" }
+    ],
+    "afterShellExecution": [
+      { "command": "node \"/home/YOUR_USER/.claude-mem/plugin/scripts/worker-service.cjs\" hook cursor observation" }
+    ],
+    "afterFileEdit": [
+      { "command": "node \"/home/YOUR_USER/.claude-mem/plugin/scripts/worker-service.cjs\" hook cursor file-edit" }
+    ],
+    "stop": [
+      { "command": "node \"/home/YOUR_USER/.claude-mem/plugin/scripts/worker-service.cjs\" hook cursor summarize" }
+    ]
+  }
+}
+```
+
+Replace `YOUR_USER` with your username. Restart Cursor after creating these files.
+
+**What each hook does:**
+| Hook | Purpose |
+|------|---------|
+| `beforeSubmitPrompt` | Initialize session, inject context from past sessions |
+| `afterMCPExecution` | Capture MCP tool usage as observations |
+| `afterShellExecution` | Capture shell commands as observations |
+| `afterFileEdit` | Capture file edits as observations |
+| `stop` | Generate session summary when conversation ends |
+
 ### LM Studio / Local Model Support
 
 This fork includes support for local LLM inference via [LM Studio](https://lmstudio.ai/):
