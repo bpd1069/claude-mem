@@ -10,9 +10,35 @@ import { execSync, spawnSync } from 'child_process';
 import { join } from 'path';
 import { homedir } from 'os';
 
-const ROOT = join(homedir(), '.claude', 'plugins', 'marketplaces', 'thedotmack');
-const MARKER = join(ROOT, '.install-version');
 const IS_WINDOWS = process.platform === 'win32';
+
+/**
+ * Get plugin root path with fallback resolution
+ * Priority: 1) CLAUDE_PLUGIN_ROOT env, 2) ~/.claude-mem/plugin/, 3) marketplace
+ */
+function getPluginRoot() {
+  // Explicit env var override (for --plugin-dir mode)
+  if (process.env.CLAUDE_PLUGIN_ROOT) {
+    return process.env.CLAUDE_PLUGIN_ROOT;
+  }
+
+  // Stable user-local location (preferred for standalone)
+  const localPath = join(homedir(), '.claude-mem', 'plugin');
+  if (existsSync(join(localPath, 'package.json'))) {
+    return localPath;
+  }
+
+  // Claude Code marketplace install (fallback)
+  const marketplacePath = join(homedir(), '.claude', 'plugins', 'marketplaces', 'bpd1069');
+  if (existsSync(join(marketplacePath, 'package.json'))) {
+    return marketplacePath;
+  }
+
+  return null;
+}
+
+const ROOT = getPluginRoot();
+const MARKER = ROOT ? join(ROOT, '.install-version') : null;
 
 // Common installation paths (handles fresh installs before PATH reload)
 const BUN_COMMON_PATHS = IS_WINDOWS
@@ -209,6 +235,7 @@ function installUv() {
  * Check if dependencies need to be installed
  */
 function needsInstall() {
+  if (!ROOT || !MARKER) return false; // No valid root found, skip install
   if (!existsSync(join(ROOT, 'node_modules'))) return true;
   try {
     const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf-8'));
@@ -247,6 +274,12 @@ function installDeps() {
 
 // Main execution
 try {
+  // Verify plugin root was found
+  if (!ROOT) {
+    console.error('[claude-mem] Plugin root not found, skipping dependency check');
+    process.exit(0);
+  }
+
   if (!isBunInstalled()) installBun();
   if (!isUvInstalled()) installUv();
   if (needsInstall()) {
