@@ -678,6 +678,133 @@ R1 ─/───┼───\\─ R2
                 />
               </div>
             </CollapsibleSection>
+
+            {/* Section 6: Migration */}
+            <CollapsibleSection
+              title="Migration"
+              description="Import data from external databases"
+              defaultOpen={false}
+            >
+              <div className="migration-info" style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '12px', lineHeight: '1.4' }}>
+                Import observations from external sources with different schemas.
+                Configure field mappings to transform external data to internal format.
+              </div>
+              <FormField
+                label="Source URL"
+                tooltip="URL of the external database to import from"
+              >
+                <input
+                  type="text"
+                  value={formState.MIGRATION_SOURCE_URL || ''}
+                  onChange={(e) => updateSetting('MIGRATION_SOURCE_URL', e.target.value)}
+                  placeholder="https://team-memory.example.com/api"
+                />
+              </FormField>
+              <FormField
+                label="Source Name"
+                tooltip="Identifier for this import source"
+              >
+                <input
+                  type="text"
+                  value={formState.MIGRATION_SOURCE_NAME || ''}
+                  onChange={(e) => updateSetting('MIGRATION_SOURCE_NAME', e.target.value)}
+                  placeholder="team-memory"
+                />
+              </FormField>
+              <FormField
+                label="Target Project"
+                tooltip="Project name to assign to imported observations"
+              >
+                <input
+                  type="text"
+                  value={formState.MIGRATION_TARGET_PROJECT || ''}
+                  onChange={(e) => updateSetting('MIGRATION_TARGET_PROJECT', e.target.value)}
+                  placeholder="imported-data"
+                />
+              </FormField>
+
+              <div className="display-subsection" style={{ marginTop: '12px' }}>
+                <span className="subsection-label">Field Mappings</span>
+                <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginBottom: '8px' }}>
+                  Map external field names to internal schema. Use dot notation for nested fields (e.g., data.info.title)
+                </div>
+                <FormField label="ID Field" tooltip="External field name for observation ID">
+                  <input
+                    type="text"
+                    value={formState.MIGRATION_FIELD_ID || 'id'}
+                    onChange={(e) => updateSetting('MIGRATION_FIELD_ID', e.target.value)}
+                    placeholder="id"
+                  />
+                </FormField>
+                <FormField label="Title Field" tooltip="External field name for title">
+                  <input
+                    type="text"
+                    value={formState.MIGRATION_FIELD_TITLE || 'title'}
+                    onChange={(e) => updateSetting('MIGRATION_FIELD_TITLE', e.target.value)}
+                    placeholder="title"
+                  />
+                </FormField>
+                <FormField label="Narrative Field" tooltip="External field name for narrative/content">
+                  <input
+                    type="text"
+                    value={formState.MIGRATION_FIELD_NARRATIVE || 'narrative'}
+                    onChange={(e) => updateSetting('MIGRATION_FIELD_NARRATIVE', e.target.value)}
+                    placeholder="narrative or content"
+                  />
+                </FormField>
+                <FormField label="Type Field" tooltip="External field name for observation type">
+                  <input
+                    type="text"
+                    value={formState.MIGRATION_FIELD_TYPE || 'type'}
+                    onChange={(e) => updateSetting('MIGRATION_FIELD_TYPE', e.target.value)}
+                    placeholder="type or category"
+                  />
+                </FormField>
+                <FormField label="Timestamp Field" tooltip="External field name for timestamp">
+                  <input
+                    type="text"
+                    value={formState.MIGRATION_FIELD_TIMESTAMP || 'created_at_epoch'}
+                    onChange={(e) => updateSetting('MIGRATION_FIELD_TIMESTAMP', e.target.value)}
+                    placeholder="created_at_epoch or timestamp"
+                  />
+                </FormField>
+              </div>
+
+              <div className="display-subsection" style={{ marginTop: '12px' }}>
+                <span className="subsection-label">Transforms</span>
+                <FormField label="Timestamp Format" tooltip="How timestamps are encoded in source">
+                  <select
+                    value={formState.MIGRATION_TIMESTAMP_FORMAT || 'epoch_ms'}
+                    onChange={(e) => updateSetting('MIGRATION_TIMESTAMP_FORMAT', e.target.value)}
+                  >
+                    <option value="epoch_ms">Epoch Milliseconds</option>
+                    <option value="epoch_s">Epoch Seconds</option>
+                    <option value="iso8601">ISO 8601 String</option>
+                  </select>
+                </FormField>
+              </div>
+
+              <div className="toggle-group" style={{ marginTop: '12px' }}>
+                <ToggleSwitch
+                  id="migration-dry-run"
+                  label="Dry Run"
+                  description="Validate without importing (preview mode)"
+                  checked={formState.MIGRATION_DRY_RUN === 'true'}
+                  onChange={(checked) => updateSetting('MIGRATION_DRY_RUN', checked ? 'true' : 'false')}
+                />
+              </div>
+
+              <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid var(--border-color)' }}>
+                <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginBottom: '8px' }}>
+                  Save settings first, then use CLI to run migration:
+                </div>
+                <pre style={{ fontSize: '10px', background: 'var(--bg-secondary)', padding: '8px', borderRadius: '4px', overflow: 'auto' }}>
+{`bun claude-mem migrate \\
+  --source "$MIGRATION_SOURCE_URL" \\
+  --project "$MIGRATION_TARGET_PROJECT"`}
+                </pre>
+              </div>
+            </CollapsibleSection>
           </div>
         </div>
 

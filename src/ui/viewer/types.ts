@@ -98,6 +98,18 @@ export interface Settings {
   FEDERATION_ALLOW_LIST?: string;
   FEDERATION_READ_ONLY?: string;
   FEDERATION_TOTAL_TIMEOUT_MS?: string;
+
+  // Migration
+  MIGRATION_SOURCE_URL?: string;
+  MIGRATION_SOURCE_NAME?: string;
+  MIGRATION_TARGET_PROJECT?: string;
+  MIGRATION_FIELD_ID?: string;
+  MIGRATION_FIELD_TITLE?: string;
+  MIGRATION_FIELD_NARRATIVE?: string;
+  MIGRATION_FIELD_TYPE?: string;
+  MIGRATION_FIELD_TIMESTAMP?: string;
+  MIGRATION_TIMESTAMP_FORMAT?: string;
+  MIGRATION_DRY_RUN?: string;
 }
 
 export interface WorkerStats {
