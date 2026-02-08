@@ -1,5 +1,7 @@
 # claude-mem (bpd1069 fork)
 
+> **This fork is in maintenance mode.** No new features — a complete rewrite is in design. Updates here will only address latent bugs.
+
 <p align="center">
   <img src="docs/compression-ratio.svg" alt="100:1 compression ratio" width="500">
 </p>
