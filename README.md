@@ -132,11 +132,27 @@ Local LLM inference via [LM Studio](https://lmstudio.ai/):
 {
   "AI_PROVIDER": "lmstudio",
   "LMSTUDIO_BASE_URL": "http://localhost:1234/v1",
-  "LMSTUDIO_MODEL": "your-model-name"
+  "LMSTUDIO_MODEL": "ibm/granite-4-h-tiny"
 }
 ```
 
 Configure via web UI at `http://localhost:37777` or in `~/.claude-mem/settings.json`.
+
+**Recommended model:** `ibm/granite-4-h-tiny` (4.2GB) — native 1M context window, efficient at ~259 output tokens/call. Load with at least 32k context: `lms load ibm/granite-4-h-tiny -c 32768 -y`.
+
+**Important:** The init prompt is sent as `role: 'system'` to prevent hallucination with small models. Earlier versions sent it as `role: 'user'`, which caused models to fabricate observations. The `CLAUDE_MEM_OPENROUTER_MAX_TOKENS` setting in `settings.json` must match the server-side context window.
+
+---
+
+### Observer Lifecycle Management
+
+The worker tracks SDK observer subprocesses to prevent accumulation:
+
+- **ObserverRegistry** — singleton mapping `sessionDbId → Set<pid>`, enables session-scoped cleanup and orphan detection
+- **ObserverReaper** — periodic (60s) sweep that kills unregistered observer processes and prunes dead PIDs from the registry
+- **GracefulShutdown** — kills all tracked observers on worker exit (SIGTERM → 3s grace → SIGKILL)
+
+No configuration needed — active by default when the worker starts.
 
 ---
 
@@ -221,6 +237,10 @@ claude-mem export --format=json --project=myproject  # Filter by project
 - [x] Dynamic marketplace org detection in sync script
 - [x] Schema adapters for external database migration
 - [x] Migration UI in settings panel
+- [x] System prompt role fix (`role: 'system'`) to prevent local model hallucination
+- [x] Observer lifecycle management (ObserverRegistry + ObserverReaper)
+- [x] Grounding rules in observer prompts to enforce factual observations
+- [x] LMStudioAgent with dedicated init prompt and context management
 
 ### Resurrection Ship (Future)
 
