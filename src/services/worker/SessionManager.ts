@@ -19,6 +19,7 @@ import { GitLfsSync } from '../sync/GitLfsSync.js';
 import { SettingsDefaultsManager } from '../../shared/SettingsDefaultsManager.js';
 import { USER_SETTINGS_PATH } from '../../shared/paths.js';
 import { SqliteVecBackend } from '../vector/SqliteVecBackend.js';
+import { ObserverRegistry } from '../infrastructure/ObserverRegistry.js';
 
 export class SessionManager {
   private dbManager: DatabaseManager;
@@ -369,11 +370,20 @@ export class SessionManager {
     // Abort the SDK agent
     session.abortController.abort();
 
-    // Wait for generator to finish
+    // Wait for generator to finish (with 5s timeout to prevent hang)
     if (session.generatorPromise) {
-      await session.generatorPromise.catch(error => {
-        logger.debug('SYSTEM', 'Generator already failed, cleaning up', { sessionId: session.sessionDbId });
-      });
+      const timeoutPromise = new Promise<void>(resolve => setTimeout(resolve, 5000));
+      await Promise.race([
+        session.generatorPromise.catch(() => {}),
+        timeoutPromise
+      ]);
+    }
+
+    // Kill observer subprocesses for this session
+    try {
+      await ObserverRegistry.getInstance().killSessionObservers(sessionDbId);
+    } catch (error) {
+      logger.debug('SYSTEM', 'Failed to kill session observers', { sessionId: sessionDbId }, error as Error);
     }
 
     // Cleanup

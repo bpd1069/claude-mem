@@ -6,6 +6,13 @@
 import { logger } from '../utils/logger.js';
 import type { ModeConfig } from '../services/domain/types.js';
 
+const MAX_TOOL_CONTENT_CHARS = 4000;
+
+export function truncateForPrompt(content: string, max: number = MAX_TOOL_CONTENT_CHARS): string {
+  if (content.length <= max) return content;
+  return content.substring(0, max) + '\n[TRUNCATED - original was ' + content.length + ' chars]';
+}
+
 export interface Observation {
   id: number;
   tool_name: string;
@@ -114,8 +121,8 @@ export function buildObservationPrompt(obs: Observation): string {
   return `<observed_from_primary_session>
   <what_happened>${obs.tool_name}</what_happened>
   <occurred_at>${new Date(obs.created_at_epoch).toISOString()}</occurred_at>${obs.cwd ? `\n  <working_directory>${obs.cwd}</working_directory>` : ''}
-  <parameters>${JSON.stringify(toolInput, null, 2)}</parameters>
-  <outcome>${JSON.stringify(toolOutput, null, 2)}</outcome>
+  <parameters>${truncateForPrompt(JSON.stringify(toolInput, null, 2))}</parameters>
+  <outcome>${truncateForPrompt(JSON.stringify(toolOutput, null, 2))}</outcome>
 </observed_from_primary_session>`;
 }
 

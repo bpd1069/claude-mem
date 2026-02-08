@@ -166,6 +166,14 @@ Alternative vector backend using [sqlite-vec](https://github.com/asg017/sqlite-v
 
 ---
 
+### Data Migration
+
+Import observations from external databases with different schemas. Configure field mappings via the Settings UI or programmatically.
+
+See [docs/migration.md](docs/migration.md) for full documentation.
+
+---
+
 ### Git-LFS Export
 
 Export vector database to a dedicated git repository for backup and versioning.
@@ -211,6 +219,8 @@ claude-mem export --format=json --project=myproject  # Filter by project
 - [x] Git-LFS export with auto-push
 - [x] Removed CLAUDE.md auto-generation (MCP tools only)
 - [x] Dynamic marketplace org detection in sync script
+- [x] Schema adapters for external database migration
+- [x] Migration UI in settings panel
 
 ### Resurrection Ship (Future)
 

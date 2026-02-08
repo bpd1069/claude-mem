@@ -614,6 +614,203 @@ describe('ResponseProcessor', () => {
     });
   });
 
+  describe('observation deduplication', () => {
+    it('should deduplicate observations with identical titles', async () => {
+      const session = createMockSession();
+      // Simulate Granite producing 3 identical observation blocks
+      const responseText = `
+        <observation>
+          <type>discovery</type>
+          <title>Same Title</title>
+          <narrative>First copy</narrative>
+          <facts></facts>
+          <concepts></concepts>
+          <files_read></files_read>
+          <files_modified></files_modified>
+        </observation>
+        <observation>
+          <type>discovery</type>
+          <title>Same Title</title>
+          <narrative>Second copy</narrative>
+          <facts></facts>
+          <concepts></concepts>
+          <files_read></files_read>
+          <files_modified></files_modified>
+        </observation>
+        <observation>
+          <type>discovery</type>
+          <title>Same Title</title>
+          <narrative>Third copy</narrative>
+          <facts></facts>
+          <concepts></concepts>
+          <files_read></files_read>
+          <files_modified></files_modified>
+        </observation>
+      `;
+
+      mockStoreObservations = mock(() => ({
+        observationIds: [1],
+        summaryId: null,
+        createdAtEpoch: 1700000000000,
+      }));
+      (mockDbManager.getSessionStore as any) = () => ({
+        storeObservations: mockStoreObservations,
+      });
+
+      await processAgentResponse(
+        responseText,
+        session,
+        mockDbManager,
+        mockSessionManager,
+        mockWorker,
+        100,
+        null,
+        'TestAgent'
+      );
+
+      const [, , observations] = mockStoreObservations.mock.calls[0];
+      expect(observations).toHaveLength(1);
+      expect(observations[0].title).toBe('Same Title');
+    });
+
+    it('should keep observations with different titles', async () => {
+      const session = createMockSession();
+      const responseText = `
+        <observation>
+          <type>discovery</type>
+          <title>First Title</title>
+          <narrative>First</narrative>
+          <facts></facts>
+          <concepts></concepts>
+          <files_read></files_read>
+          <files_modified></files_modified>
+        </observation>
+        <observation>
+          <type>bugfix</type>
+          <title>Second Title</title>
+          <narrative>Second</narrative>
+          <facts></facts>
+          <concepts></concepts>
+          <files_read></files_read>
+          <files_modified></files_modified>
+        </observation>
+      `;
+
+      await processAgentResponse(
+        responseText,
+        session,
+        mockDbManager,
+        mockSessionManager,
+        mockWorker,
+        100,
+        null,
+        'TestAgent'
+      );
+
+      const [, , observations] = mockStoreObservations.mock.calls[0];
+      expect(observations).toHaveLength(2);
+      expect(observations[0].title).toBe('First Title');
+      expect(observations[1].title).toBe('Second Title');
+    });
+
+    it('should handle observations with null/empty titles without crashing', async () => {
+      const session = createMockSession();
+      // Two observations with no title field - should deduplicate to 1
+      const responseText = `
+        <observation>
+          <type>discovery</type>
+          <narrative>No title 1</narrative>
+          <facts></facts>
+          <concepts></concepts>
+          <files_read></files_read>
+          <files_modified></files_modified>
+        </observation>
+        <observation>
+          <type>discovery</type>
+          <narrative>No title 2</narrative>
+          <facts></facts>
+          <concepts></concepts>
+          <files_read></files_read>
+          <files_modified></files_modified>
+        </observation>
+      `;
+
+      mockStoreObservations = mock(() => ({
+        observationIds: [1],
+        summaryId: null,
+        createdAtEpoch: 1700000000000,
+      }));
+      (mockDbManager.getSessionStore as any) = () => ({
+        storeObservations: mockStoreObservations,
+      });
+
+      await processAgentResponse(
+        responseText,
+        session,
+        mockDbManager,
+        mockSessionManager,
+        mockWorker,
+        100,
+        null,
+        'TestAgent'
+      );
+
+      // Both have null title → key is '' → deduplicates to 1
+      const [, , observations] = mockStoreObservations.mock.calls[0];
+      expect(observations).toHaveLength(1);
+    });
+
+    it('should log when deduplication occurs', async () => {
+      const session = createMockSession();
+      const responseText = `
+        <observation>
+          <type>discovery</type>
+          <title>Duplicate</title>
+          <facts></facts>
+          <concepts></concepts>
+          <files_read></files_read>
+          <files_modified></files_modified>
+        </observation>
+        <observation>
+          <type>discovery</type>
+          <title>Duplicate</title>
+          <facts></facts>
+          <concepts></concepts>
+          <files_read></files_read>
+          <files_modified></files_modified>
+        </observation>
+      `;
+
+      mockStoreObservations = mock(() => ({
+        observationIds: [1],
+        summaryId: null,
+        createdAtEpoch: 1700000000000,
+      }));
+      (mockDbManager.getSessionStore as any) = () => ({
+        storeObservations: mockStoreObservations,
+      });
+
+      await processAgentResponse(
+        responseText,
+        session,
+        mockDbManager,
+        mockSessionManager,
+        mockWorker,
+        100,
+        null,
+        'TestAgent'
+      );
+
+      // Check logger.warn was called with DEDUP tag
+      const warnSpy = loggerSpies.find(s => s.getMockName?.() === 'warn') || loggerSpies[2];
+      const dedupCall = warnSpy.mock.calls.find(
+        (call: any[]) => call[0] === 'DEDUP'
+      );
+      expect(dedupCall).toBeDefined();
+      expect(dedupCall![1]).toContain('1 duplicate');
+    });
+  });
+
   describe('error handling', () => {
     it('should throw error if memorySessionId is missing', async () => {
       const session = createMockSession({

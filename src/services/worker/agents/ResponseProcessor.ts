@@ -59,8 +59,23 @@ export async function processAgentResponse(
   }
 
   // Parse observations and summary
-  const observations = parseObservations(text, session.contentSessionId);
+  const rawObservations = parseObservations(text, session.contentSessionId);
   const summary = parseSummary(text, session.sessionDbId);
+
+  // Deduplicate observations by title (Granite and other models may produce multiple identical blocks)
+  const seen = new Set<string>();
+  const observations = rawObservations.filter(obs => {
+    const key = obs.title || '';
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  if (observations.length < rawObservations.length) {
+    logger.warn('DEDUP', `Removed ${rawObservations.length - observations.length} duplicate observations (${rawObservations.length} → ${observations.length})`, {
+      sessionId: session.sessionDbId,
+      titles: rawObservations.map(o => o.title || '(untitled)')
+    });
+  }
 
   // Convert nullable fields to empty strings for storeSummary (if summary exists)
   const summaryForStore = normalizeSummaryForStorage(summary);

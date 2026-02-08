@@ -78,10 +78,6 @@ export function getPlatformTimeout(baseMs: number): number {
  * Used for cleanup to prevent zombie ports when parent exits
  */
 export async function getChildProcesses(parentPid: number): Promise<number[]> {
-  if (process.platform !== 'win32') {
-    return [];
-  }
-
   // SECURITY: Validate PID is a positive integer to prevent command injection
   if (!Number.isInteger(parentPid) || parentPid <= 0) {
     logger.warn('SYSTEM', 'Invalid parent PID for child process enumeration', { parentPid });
@@ -89,21 +85,44 @@ export async function getChildProcesses(parentPid: number): Promise<number[]> {
   }
 
   try {
-    // PowerShell Get-Process instead of WMIC (deprecated in Windows 11)
-    const cmd = `powershell -NoProfile -NonInteractive -Command "Get-Process | Where-Object { \\$_.ParentProcessId -eq ${parentPid} } | Select-Object -ExpandProperty Id"`;
-    const { stdout } = await execAsync(cmd, { timeout: HOOK_TIMEOUTS.POWERSHELL_COMMAND });
-    // PowerShell outputs just numbers (one per line), simpler than WMIC's "ProcessId=1234" format
-    return stdout
-      .split('\n')
-      .map(line => line.trim())
-      .filter(line => line.length > 0 && /^\d+$/.test(line))
-      .map(line => parseInt(line, 10))
-      .filter(pid => pid > 0);
+    if (process.platform === 'win32') {
+      // PowerShell Get-Process instead of WMIC (deprecated in Windows 11)
+      const cmd = `powershell -NoProfile -NonInteractive -Command "Get-Process | Where-Object { \\$_.ParentProcessId -eq ${parentPid} } | Select-Object -ExpandProperty Id"`;
+      const { stdout } = await execAsync(cmd, { timeout: HOOK_TIMEOUTS.POWERSHELL_COMMAND });
+      // PowerShell outputs just numbers (one per line), simpler than WMIC's "ProcessId=1234" format
+      return parsePidOutput(stdout);
+    }
+
+    // Linux/macOS: Try pgrep first, fall back to ps
+    try {
+      const { stdout } = await execAsync(`pgrep -P ${parentPid}`, { timeout: 5000 });
+      return parsePidOutput(stdout);
+    } catch (pgrepError: any) {
+      // pgrep exit code 1 = no children found (not an error)
+      if (pgrepError.code === 1) {
+        return [];
+      }
+      // pgrep not available, fall back to ps
+      const { stdout } = await execAsync(`ps --ppid ${parentPid} -o pid=`, { timeout: 5000 });
+      return parsePidOutput(stdout);
+    }
   } catch (error) {
     // Shutdown cleanup - failure is non-critical, continue without child process cleanup
     logger.error('SYSTEM', 'Failed to enumerate child processes', { parentPid }, error as Error);
     return [];
   }
+}
+
+/**
+ * Parse newline-separated PID output into validated number array
+ */
+function parsePidOutput(stdout: string): number[] {
+  return stdout
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line.length > 0 && /^\d+$/.test(line))
+    .map(line => parseInt(line, 10))
+    .filter(pid => pid > 0);
 }
 
 /**
@@ -257,6 +276,30 @@ export async function cleanupOrphanedProcesses(): Promise<void> {
   }
 
   logger.info('SYSTEM', 'Orphaned processes cleaned up', { count: pids.length });
+}
+
+/**
+ * Find orphaned claude observer processes by command-line pattern
+ * Returns PIDs of processes matching "claude.*disallowedTools" that aren't our own PID
+ */
+export async function findOrphanedObserverProcesses(): Promise<number[]> {
+  if (process.platform === 'win32') {
+    // Windows: not implemented yet
+    return [];
+  }
+
+  try {
+    const { stdout } = await execAsync(
+      'pgrep -f "claude.*disallowedTools" || true',
+      { timeout: 5000 }
+    );
+    if (!stdout.trim()) return [];
+
+    return parsePidOutput(stdout).filter(pid => pid !== process.pid);
+  } catch (error) {
+    logger.debug('SYSTEM', 'Failed to find orphaned observer processes', {}, error as Error);
+    return [];
+  }
 }
 
 /**

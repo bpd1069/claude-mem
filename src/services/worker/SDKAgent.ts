@@ -20,6 +20,7 @@ import { USER_SETTINGS_PATH } from '../../shared/paths.js';
 import type { ActiveSession, SDKUserMessage } from '../worker-types.js';
 import { ModeManager } from '../domain/ModeManager.js';
 import { processAgentResponse, type WorkerRef } from './agents/index.js';
+import { ObserverRegistry } from '../infrastructure/ObserverRegistry.js';
 
 // Import Agent SDK (assumes it's installed)
 // @ts-ignore - Agent SDK types may not be available
@@ -97,6 +98,10 @@ export class SDKAgent {
       }
     }
 
+    // Snapshot child PIDs before query() to detect new observer subprocess
+    const registry = ObserverRegistry.getInstance();
+    const pidsBefore = await registry.snapshotChildPids();
+
     // Run Agent SDK query loop
     // Only resume if we have a captured memory session ID
     const queryResult = query({
@@ -112,6 +117,20 @@ export class SDKAgent {
         pathToClaudeCodeExecutable: claudePath
       }
     });
+
+    // Detect new child processes spawned by query() and register them
+    // Small delay to let the subprocess start
+    setTimeout(async () => {
+      try {
+        const pidsAfter = await registry.snapshotChildPids();
+        const newPids = Array.from(pidsAfter).filter(pid => !pidsBefore.has(pid));
+        if (newPids.length > 0) {
+          registry.registerObservers(session.sessionDbId, newPids);
+        }
+      } catch (error) {
+        logger.debug('SDK', 'Failed to register observer PIDs', {}, error as Error);
+      }
+    }, 200);
 
     // Process SDK messages
     for await (const message of queryResult) {

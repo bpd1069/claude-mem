@@ -48,9 +48,9 @@
   "scripts": {
     "dev": "npm run build-and-sync",
     "build": "node scripts/build-hooks.js",
-    "build-and-sync": "npm run build && npm run worker:restart",
-    "sync-marketplace": "node scripts/sync-marketplace.cjs",
-    "sync-marketplace:force": "node scripts/sync-marketplace.cjs --force",
+    "build-and-sync": "npm run build && cp plugin/scripts/worker-service.cjs ~/.claude-mem/plugin/scripts/worker-service.cjs && cp plugin/modes/code.json ~/.claude-mem/plugin/modes/code.json && echo '✓ Synced to ~/.claude-mem/plugin/' && npm run worker:restart",
+    "sync-marketplace": "echo 'DISABLED: use build-and-sync instead (syncs directly to ~/.claude-mem/plugin/)'",
+    "sync-marketplace:force": "echo 'DISABLED: use build-and-sync instead'",
     "build:binaries": "node scripts/build-worker-binary.js",
     "worker:logs": "tail -n 50 ~/.claude-mem/logs/worker-$(date +%Y-%m-%d).log",
     "worker:tail": "tail -f 50 ~/.claude-mem/logs/worker-$(date +%Y-%m-%d).log",
@@ -82,7 +82,8 @@
     "test:search": "bun test tests/worker/search/",
     "test:context": "bun test tests/context/",
     "test:infra": "bun test tests/infrastructure/",
-    "test:server": "bun test tests/server/"
+    "test:server": "bun test tests/server/",
+    "test:e2e": "npx playwright test tests/e2e/"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.1.76",
@@ -97,6 +98,7 @@
     "zod-to-json-schema": "^3.24.6"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@types/cors": "^2.8.19",
     "@types/express": "^4.17.21",
     "@types/node": "^20.0.0",

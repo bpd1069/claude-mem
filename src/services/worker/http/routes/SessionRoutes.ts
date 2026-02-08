@@ -14,6 +14,7 @@ import { DatabaseManager } from '../../DatabaseManager.js';
 import { SDKAgent } from '../../SDKAgent.js';
 import { GeminiAgent, isGeminiSelected, isGeminiAvailable } from '../../GeminiAgent.js';
 import { OpenRouterAgent, isOpenRouterSelected, isOpenRouterAvailable } from '../../OpenRouterAgent.js';
+import { LMStudioAgent, isLMStudioSelected, isLMStudioAvailable } from '../../LMStudioAgent.js';
 import type { WorkerService } from '../../../worker-service.js';
 import { BaseRouteHandler } from '../BaseRouteHandler.js';
 import { SessionEventBroadcaster } from '../../events/SessionEventBroadcaster.js';
@@ -31,6 +32,7 @@ export class SessionRoutes extends BaseRouteHandler {
     private sdkAgent: SDKAgent,
     private geminiAgent: GeminiAgent,
     private openRouterAgent: OpenRouterAgent,
+    private lmStudioAgent: LMStudioAgent,
     private eventBroadcaster: SessionEventBroadcaster,
     private workerService: WorkerService
   ) {
@@ -48,7 +50,15 @@ export class SessionRoutes extends BaseRouteHandler {
    * Note: Session linking via contentSessionId allows provider switching mid-session.
    * The conversationHistory on ActiveSession maintains context across providers.
    */
-  private getActiveAgent(): SDKAgent | GeminiAgent | OpenRouterAgent {
+  private getActiveAgent(): SDKAgent | GeminiAgent | OpenRouterAgent | LMStudioAgent {
+    if (isLMStudioSelected()) {
+      if (isLMStudioAvailable()) {
+        logger.debug('SESSION', 'Using LM Studio agent');
+        return this.lmStudioAgent;
+      } else {
+        throw new Error('LM Studio provider selected but no model configured. Set CLAUDE_MEM_LMSTUDIO_MODEL in settings.');
+      }
+    }
     if (isOpenRouterSelected()) {
       if (isOpenRouterAvailable()) {
         logger.debug('SESSION', 'Using OpenRouter agent');
@@ -71,7 +81,10 @@ export class SessionRoutes extends BaseRouteHandler {
   /**
    * Get the currently selected provider name
    */
-  private getSelectedProvider(): 'claude' | 'gemini' | 'openrouter' {
+  private getSelectedProvider(): 'claude' | 'gemini' | 'openrouter' | 'lmstudio' {
+    if (isLMStudioSelected() && isLMStudioAvailable()) {
+      return 'lmstudio';
+    }
     if (isOpenRouterSelected() && isOpenRouterAvailable()) {
       return 'openrouter';
     }
@@ -117,13 +130,27 @@ export class SessionRoutes extends BaseRouteHandler {
    */
   private startGeneratorWithProvider(
     session: ReturnType<typeof this.sessionManager.getSession>,
-    provider: 'claude' | 'gemini' | 'openrouter',
+    provider: 'claude' | 'gemini' | 'openrouter' | 'lmstudio',
     source: string
   ): void {
     if (!session) return;
 
-    const agent = provider === 'openrouter' ? this.openRouterAgent : (provider === 'gemini' ? this.geminiAgent : this.sdkAgent);
-    const agentName = provider === 'openrouter' ? 'OpenRouter' : (provider === 'gemini' ? 'Gemini' : 'Claude SDK');
+    // Dedup guard: don't spawn if generator is already running
+    if (session.generatorPromise) {
+      logger.debug('SESSION', `Generator already running, skipping spawn (${source})`, {
+        sessionId: session.sessionDbId,
+        currentProvider: session.currentProvider
+      });
+      return;
+    }
+
+    const agentMap = {
+      lmstudio: { agent: this.lmStudioAgent, name: 'LM Studio' },
+      openrouter: { agent: this.openRouterAgent, name: 'OpenRouter' },
+      gemini: { agent: this.geminiAgent, name: 'Gemini' },
+      claude: { agent: this.sdkAgent, name: 'Claude SDK' },
+    } as const;
+    const { agent, name: agentName } = agentMap[provider];
 
     logger.info('SESSION', `Generator auto-starting (${source}) using ${agentName}`, {
       sessionId: session.sessionDbId,
@@ -200,8 +227,10 @@ export class SessionRoutes extends BaseRouteHandler {
                 }
               }, 1000);
             } else {
-              // No pending work - abort to kill the child process
+              // No pending work - abort to kill the child process, then replace
+              // so future generator starts get a fresh (non-aborted) controller
               session.abortController.abort();
+              session.abortController = new AbortController();
               logger.debug('SESSION', 'Aborted controller after natural completion', {
                 sessionId: sessionDbId
               });
@@ -291,8 +320,8 @@ export class SessionRoutes extends BaseRouteHandler {
       });
     }
 
-    // Start agent in background using the helper method
-    this.startGeneratorWithProvider(session, this.getSelectedProvider(), 'init');
+    // Start agent in background using dedup-safe helper
+    this.ensureGeneratorRunning(sessionDbId, 'init');
 
     // Broadcast session started event
     this.eventBroadcaster.broadcastSessionStarted(sessionDbId, session.project);

@@ -37,6 +37,7 @@ import {
   checkVersionMatch
 } from './infrastructure/HealthMonitor.js';
 import { performGracefulShutdown } from './infrastructure/GracefulShutdown.js';
+import { ObserverReaper } from './infrastructure/ObserverReaper.js';
 
 // Server imports
 import { Server } from './server/Server.js';
@@ -54,6 +55,7 @@ import { SSEBroadcaster } from './worker/SSEBroadcaster.js';
 import { SDKAgent } from './worker/SDKAgent.js';
 import { GeminiAgent } from './worker/GeminiAgent.js';
 import { OpenRouterAgent } from './worker/OpenRouterAgent.js';
+import { LMStudioAgent, isLMStudioSelected, isLMStudioAvailable } from './worker/LMStudioAgent.js';
 import { PaginationHelper } from './worker/PaginationHelper.js';
 import { SettingsManager } from './worker/SettingsManager.js';
 import { SearchManager } from './worker/SearchManager.js';
@@ -110,9 +112,13 @@ export class WorkerService {
   private sdkAgent: SDKAgent;
   private geminiAgent: GeminiAgent;
   private openRouterAgent: OpenRouterAgent;
+  private lmStudioAgent: LMStudioAgent;
   private paginationHelper: PaginationHelper;
   private settingsManager: SettingsManager;
   private sessionEventBroadcaster: SessionEventBroadcaster;
+
+  // Observer reaper
+  private observerReaper: ObserverReaper;
 
   // Route handlers
   private searchRoutes: SearchRoutes | null = null;
@@ -134,9 +140,12 @@ export class WorkerService {
     this.sdkAgent = new SDKAgent(this.dbManager, this.sessionManager);
     this.geminiAgent = new GeminiAgent(this.dbManager, this.sessionManager);
     this.openRouterAgent = new OpenRouterAgent(this.dbManager, this.sessionManager);
+    this.lmStudioAgent = new LMStudioAgent(this.dbManager, this.sessionManager);
+    this.lmStudioAgent.setFallbackAgent(this.sdkAgent);
 
     this.paginationHelper = new PaginationHelper(this.dbManager);
     this.settingsManager = new SettingsManager(this.dbManager);
+    this.observerReaper = new ObserverReaper();
     this.sessionEventBroadcaster = new SessionEventBroadcaster(this.sseBroadcaster, this);
 
     // Set callback for when sessions are deleted
@@ -189,7 +198,7 @@ export class WorkerService {
   private registerRoutes(): void {
     // Standard routes
     this.server.registerRoutes(new ViewerRoutes(this.sseBroadcaster, this.dbManager, this.sessionManager));
-    this.server.registerRoutes(new SessionRoutes(this.sessionManager, this.dbManager, this.sdkAgent, this.geminiAgent, this.openRouterAgent, this.sessionEventBroadcaster, this));
+    this.server.registerRoutes(new SessionRoutes(this.sessionManager, this.dbManager, this.sdkAgent, this.geminiAgent, this.openRouterAgent, this.lmStudioAgent, this.sessionEventBroadcaster, this));
     this.server.registerRoutes(new DataRoutes(this.paginationHelper, this.dbManager, this.sessionManager, this.sseBroadcaster, this, this.startTime));
     this.server.registerRoutes(new SettingsRoutes(this.settingsManager));
     this.server.registerRoutes(new LogsRoutes());
@@ -299,6 +308,9 @@ export class WorkerService {
       this.mcpReady = true;
       logger.success('WORKER', 'Connected to MCP server');
 
+      // Start observer reaper for periodic orphan cleanup
+      this.observerReaper.start();
+
       this.initializationCompleteFlag = true;
       this.resolveInitialization();
       logger.info('SYSTEM', 'Background initialization complete');
@@ -330,14 +342,28 @@ export class WorkerService {
   ): void {
     if (!session) return;
 
-    const sid = session.sessionDbId;
-    logger.info('SYSTEM', `Starting generator (${source})`, { sessionId: sid });
+    // Dedup guard: don't spawn if generator is already running
+    if (session.generatorPromise) {
+      logger.debug('SYSTEM', `Generator already running, skipping spawn (${source})`, {
+        sessionId: session.sessionDbId
+      });
+      return;
+    }
 
-    session.generatorPromise = this.sdkAgent.startSession(session, this)
+    const sid = session.sessionDbId;
+    const agent = (isLMStudioSelected() && isLMStudioAvailable())
+      ? this.lmStudioAgent
+      : this.sdkAgent;
+    const providerName = agent === this.lmStudioAgent ? 'LM Studio' : 'Claude SDK';
+
+    logger.info('SYSTEM', `Starting generator (${source}) using ${providerName}`, { sessionId: sid });
+
+    session.generatorPromise = agent.startSession(session, this)
       .catch(error => {
         logger.error('SDK', 'Session generator failed', {
           sessionId: session.sessionDbId,
-          project: session.project
+          project: session.project,
+          provider: providerName
         }, error as Error);
       })
       .finally(() => {
@@ -404,6 +430,7 @@ export class WorkerService {
    * Shutdown the worker service
    */
   async shutdown(): Promise<void> {
+    this.observerReaper.stop();
     await performGracefulShutdown({
       server: this.server.getHttpServer(),
       sessionManager: this.sessionManager,

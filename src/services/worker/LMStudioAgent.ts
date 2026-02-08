@@ -1,14 +1,14 @@
 /**
- * OpenRouterAgent: OpenRouter-based observation extraction
+ * LMStudioAgent: Local LM Studio-based observation extraction
  *
- * Alternative to SDKAgent that uses OpenRouter's unified API
- * for accessing 100+ models from different providers.
+ * Uses LM Studio's OpenAI-compatible REST API for zero-token
+ * local inference. No API key required, no cost tracking.
  *
  * Responsibility:
- * - Call OpenRouter REST API for observation extraction
- * - Parse XML responses (same format as Claude/Gemini)
+ * - Call LM Studio REST API for observation extraction
+ * - Parse XML responses (same format as Claude/Gemini/OpenRouter)
  * - Sync to database and Chroma
- * - Support dynamic model selection across providers
+ * - Fallback to Claude SDK on connection errors
  */
 
 import { DatabaseManager } from './DatabaseManager.js';
@@ -27,13 +27,14 @@ import {
   type FallbackAgent
 } from './agents/index.js';
 
-// OpenRouter API endpoint
-const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+// Default LM Studio endpoint
+const DEFAULT_LMSTUDIO_BASE_URL = 'http://localhost:1234/v1';
 
-// Context window management constants (defaults, overridable via settings)
-const DEFAULT_MAX_CONTEXT_MESSAGES = 20;  // Maximum messages to keep in conversation history
-const DEFAULT_MAX_ESTIMATED_TOKENS = 100000;  // ~100k tokens max context (safety limit)
-const CHARS_PER_TOKEN_ESTIMATE = 4;  // Conservative estimate: 1 token = 4 chars
+// Context window management constants
+const DEFAULT_MAX_CONTEXT_MESSAGES = 20;
+const DEFAULT_MAX_ESTIMATED_TOKENS = 100000;
+const CHARS_PER_TOKEN_ESTIMATE = 4;
+const DEFAULT_MAX_OUTPUT_TOKENS = 512;
 
 // OpenAI-compatible message format
 interface OpenAIMessage {
@@ -41,7 +42,7 @@ interface OpenAIMessage {
   content: string;
 }
 
-interface OpenRouterResponse {
+interface LMStudioResponse {
   choices?: Array<{
     message?: {
       role?: string;
@@ -60,7 +61,7 @@ interface OpenRouterResponse {
   };
 }
 
-export class OpenRouterAgent {
+export class LMStudioAgent {
   private dbManager: DatabaseManager;
   private sessionManager: SessionManager;
   private fallbackAgent: FallbackAgent | null = null;
@@ -71,25 +72,18 @@ export class OpenRouterAgent {
   }
 
   /**
-   * Set the fallback agent (Claude SDK) for when OpenRouter API fails
-   * Must be set after construction to avoid circular dependency
+   * Set the fallback agent (Claude SDK) for when LM Studio is unavailable
    */
   setFallbackAgent(agent: FallbackAgent): void {
     this.fallbackAgent = agent;
   }
 
   /**
-   * Start OpenRouter agent for a session
-   * Uses multi-turn conversation to maintain context across messages
+   * Start LM Studio agent for a session
    */
   async startSession(session: ActiveSession, worker?: WorkerRef): Promise<void> {
     try {
-      // Get OpenRouter configuration
-      const { apiKey, model, siteUrl, appName } = this.getOpenRouterConfig();
-
-      if (!apiKey) {
-        throw new Error('OpenRouter API key not configured. Set CLAUDE_MEM_OPENROUTER_API_KEY in settings or OPENROUTER_API_KEY environment variable.');
-      }
+      const { baseUrl, model } = this.getLMStudioConfig();
 
       // Load active mode
       const mode = ModeManager.getInstance().getActiveMode();
@@ -99,21 +93,32 @@ export class OpenRouterAgent {
         ? buildInitPrompt(session.project, session.contentSessionId, session.userPrompt, mode)
         : buildContinuationPrompt(session.userPrompt, session.lastPromptNumber, session.contentSessionId, mode);
 
-      // Add to conversation history and query OpenRouter with full context
+      // Add to conversation history and query LM Studio
       // Use 'system' role so the LLM treats instructions as persistent system context
       session.conversationHistory.push({ role: 'system', content: initPrompt });
-      const initResponse = await this.queryOpenRouterMultiTurn(session.conversationHistory, apiKey, model, siteUrl, appName);
+      const initResponse = await this.queryLMStudio(session.conversationHistory, baseUrl, model);
 
       if (initResponse.content) {
-        // Add response to conversation history
+        // Generate synthetic memorySessionId since LM Studio REST API has no session concept
+        // (Claude SDK provides this via query() response, but REST endpoints don't)
+        if (!session.memorySessionId) {
+          session.memorySessionId = `lmstudio-${session.contentSessionId}`;
+          this.dbManager.getSessionStore().updateMemorySessionId(
+            session.sessionDbId,
+            session.memorySessionId
+          );
+          logger.info('SESSION', `MEMORY_ID_CAPTURED | sessionDbId=${session.sessionDbId} | memorySessionId=${session.memorySessionId} | provider=lmstudio`, {
+            sessionId: session.sessionDbId,
+            memorySessionId: session.memorySessionId
+          });
+        }
+
         session.conversationHistory.push({ role: 'assistant', content: initResponse.content });
 
-        // Track token usage
         const tokensUsed = initResponse.tokensUsed || 0;
-        session.cumulativeInputTokens += Math.floor(tokensUsed * 0.7);  // Rough estimate
+        session.cumulativeInputTokens += Math.floor(tokensUsed * 0.7);
         session.cumulativeOutputTokens += Math.floor(tokensUsed * 0.3);
 
-        // Process response using shared ResponseProcessor (no original timestamp for init - not from queue)
         await processAgentResponse(
           initResponse.content,
           session,
@@ -122,35 +127,31 @@ export class OpenRouterAgent {
           worker,
           tokensUsed,
           null,
-          'OpenRouter',
-          undefined  // No lastCwd yet - before message processing
+          'LMStudio',
+          undefined
         );
       } else {
-        logger.error('SDK', 'Empty OpenRouter init response - session may lack context', {
+        logger.error('SDK', 'Empty LM Studio init response', {
           sessionId: session.sessionDbId,
           model
         });
       }
 
-      // Track lastCwd from messages for CLAUDE.md generation
+      // Track lastCwd from messages
       let lastCwd: string | undefined;
 
       // Process pending messages
       for await (const message of this.sessionManager.getMessageIterator(session.sessionDbId)) {
-        // Capture cwd from messages for proper worktree support
         if (message.cwd) {
           lastCwd = message.cwd;
         }
-        // Capture earliest timestamp BEFORE processing (will be cleared after)
         const originalTimestamp = session.earliestPendingTimestamp;
 
         if (message.type === 'observation') {
-          // Update last prompt number
           if (message.prompt_number !== undefined) {
             session.lastPromptNumber = message.prompt_number;
           }
 
-          // Build observation prompt
           const obsPrompt = buildObservationPrompt({
             id: 0,
             tool_name: message.tool_name!,
@@ -160,21 +161,17 @@ export class OpenRouterAgent {
             cwd: message.cwd
           });
 
-          // Add to conversation history and query OpenRouter with full context
           session.conversationHistory.push({ role: 'user', content: obsPrompt });
-          const obsResponse = await this.queryOpenRouterMultiTurn(session.conversationHistory, apiKey, model, siteUrl, appName);
+          const obsResponse = await this.queryLMStudio(session.conversationHistory, baseUrl, model);
 
           let tokensUsed = 0;
           if (obsResponse.content) {
-            // Add response to conversation history
             session.conversationHistory.push({ role: 'assistant', content: obsResponse.content });
-
             tokensUsed = obsResponse.tokensUsed || 0;
             session.cumulativeInputTokens += Math.floor(tokensUsed * 0.7);
             session.cumulativeOutputTokens += Math.floor(tokensUsed * 0.3);
           }
 
-          // Process response using shared ResponseProcessor
           await processAgentResponse(
             obsResponse.content || '',
             session,
@@ -183,12 +180,11 @@ export class OpenRouterAgent {
             worker,
             tokensUsed,
             originalTimestamp,
-            'OpenRouter',
+            'LMStudio',
             lastCwd
           );
 
         } else if (message.type === 'summarize') {
-          // Build summary prompt
           const summaryPrompt = buildSummaryPrompt({
             id: session.sessionDbId,
             memory_session_id: session.memorySessionId,
@@ -197,21 +193,17 @@ export class OpenRouterAgent {
             last_assistant_message: message.last_assistant_message || ''
           }, mode);
 
-          // Add to conversation history and query OpenRouter with full context
           session.conversationHistory.push({ role: 'user', content: summaryPrompt });
-          const summaryResponse = await this.queryOpenRouterMultiTurn(session.conversationHistory, apiKey, model, siteUrl, appName);
+          const summaryResponse = await this.queryLMStudio(session.conversationHistory, baseUrl, model);
 
           let tokensUsed = 0;
           if (summaryResponse.content) {
-            // Add response to conversation history
             session.conversationHistory.push({ role: 'assistant', content: summaryResponse.content });
-
             tokensUsed = summaryResponse.tokensUsed || 0;
             session.cumulativeInputTokens += Math.floor(tokensUsed * 0.7);
             session.cumulativeOutputTokens += Math.floor(tokensUsed * 0.3);
           }
 
-          // Process response using shared ResponseProcessor
           await processAgentResponse(
             summaryResponse.content || '',
             session,
@@ -220,7 +212,7 @@ export class OpenRouterAgent {
             worker,
             tokensUsed,
             originalTimestamp,
-            'OpenRouter',
+            'LMStudio',
             lastCwd
           );
         }
@@ -228,7 +220,7 @@ export class OpenRouterAgent {
 
       // Mark session complete
       const sessionDuration = Date.now() - session.startTime;
-      logger.success('SDK', 'OpenRouter agent completed', {
+      logger.success('SDK', 'LM Studio agent completed', {
         sessionId: session.sessionDbId,
         duration: `${(sessionDuration / 1000).toFixed(1)}s`,
         historyLength: session.conversationHistory.length,
@@ -237,39 +229,29 @@ export class OpenRouterAgent {
 
     } catch (error: unknown) {
       if (isAbortError(error)) {
-        logger.warn('SDK', 'OpenRouter agent aborted', { sessionId: session.sessionDbId });
+        logger.warn('SDK', 'LM Studio agent aborted', { sessionId: session.sessionDbId });
         throw error;
       }
 
-      // Check if we should fall back to Claude
       if (shouldFallbackToClaude(error) && this.fallbackAgent) {
-        logger.warn('SDK', 'OpenRouter API failed, falling back to Claude SDK', {
+        logger.warn('SDK', 'LM Studio unavailable, falling back to Claude SDK', {
           sessionDbId: session.sessionDbId,
           error: error instanceof Error ? error.message : String(error),
           historyLength: session.conversationHistory.length
         });
 
-        // Fall back to Claude - it will use the same session with shared conversationHistory
-        // Note: With claim-and-delete queue pattern, messages are already deleted on claim
         return this.fallbackAgent.startSession(session, worker);
       }
 
-      logger.failure('SDK', 'OpenRouter agent error', { sessionDbId: session.sessionDbId }, error as Error);
+      logger.failure('SDK', 'LM Studio agent error', { sessionDbId: session.sessionDbId }, error as Error);
       throw error;
     }
   }
 
-  /**
-   * Estimate token count from text (conservative estimate)
-   */
   private estimateTokens(text: string): number {
     return Math.ceil(text.length / CHARS_PER_TOKEN_ESTIMATE);
   }
 
-  /**
-   * Truncate conversation history to prevent runaway context costs
-   * Keeps most recent messages within token budget
-   */
   private truncateHistory(history: ConversationMessage[]): ConversationMessage[] {
     const settings = SettingsDefaultsManager.loadFromFile(USER_SETTINGS_PATH);
 
@@ -277,7 +259,6 @@ export class OpenRouterAgent {
     const MAX_ESTIMATED_TOKENS = parseInt(settings.CLAUDE_MEM_OPENROUTER_MAX_TOKENS) || DEFAULT_MAX_ESTIMATED_TOKENS;
 
     if (history.length <= MAX_CONTEXT_MESSAGES) {
-      // Check token count even if message count is ok
       const totalTokens = history.reduce((sum, m) => sum + this.estimateTokens(m.content), 0);
       if (totalTokens <= MAX_ESTIMATED_TOKENS) {
         return history;
@@ -288,7 +269,6 @@ export class OpenRouterAgent {
     const systemMsg = history.length > 0 && history[0].role === 'system' ? history[0] : null;
     const startIndex = systemMsg ? 1 : 0;
 
-    // Sliding window: keep most recent messages within limits
     const truncated: ConversationMessage[] = [];
     let tokenCount = 0;
 
@@ -297,13 +277,12 @@ export class OpenRouterAgent {
       tokenCount += this.estimateTokens(systemMsg.content);
     }
 
-    // Process messages in reverse (most recent first), skipping system message
     for (let i = history.length - 1; i >= startIndex; i--) {
       const msg = history[i];
       const msgTokens = this.estimateTokens(msg.content);
 
       if (truncated.length >= (MAX_CONTEXT_MESSAGES - (systemMsg ? 1 : 0)) || tokenCount + msgTokens > MAX_ESTIMATED_TOKENS) {
-        logger.warn('SDK', 'Context window truncated to prevent runaway costs', {
+        logger.warn('SDK', 'LM Studio context window truncated', {
           originalMessages: history.length,
           keptMessages: truncated.length + (systemMsg ? 1 : 0),
           droppedMessages: i + 1 - startIndex,
@@ -313,7 +292,7 @@ export class OpenRouterAgent {
         break;
       }
 
-      truncated.unshift(msg);  // Add to beginning
+      truncated.unshift(msg);
       tokenCount += msgTokens;
     }
 
@@ -325,9 +304,6 @@ export class OpenRouterAgent {
     return truncated;
   }
 
-  /**
-   * Convert shared ConversationMessage array to OpenAI-compatible message format
-   */
   private conversationToOpenAIMessages(history: ConversationMessage[]): OpenAIMessage[] {
     return history.map(msg => ({
       role: msg.role === 'assistant' ? 'assistant' : msg.role === 'system' ? 'system' : 'user',
@@ -336,127 +312,102 @@ export class OpenRouterAgent {
   }
 
   /**
-   * Query OpenRouter via REST API with full conversation history (multi-turn)
-   * Sends the entire conversation context for coherent responses
+   * Query LM Studio via OpenAI-compatible REST API
    */
-  private async queryOpenRouterMultiTurn(
+  private async queryLMStudio(
     history: ConversationMessage[],
-    apiKey: string,
-    model: string,
-    siteUrl?: string,
-    appName?: string
+    baseUrl: string,
+    model: string
   ): Promise<{ content: string; tokensUsed?: number }> {
-    // Truncate history to prevent runaway costs
     const truncatedHistory = this.truncateHistory(history);
     const messages = this.conversationToOpenAIMessages(truncatedHistory);
     const totalChars = truncatedHistory.reduce((sum, m) => sum + m.content.length, 0);
     const estimatedTokens = this.estimateTokens(truncatedHistory.map(m => m.content).join(''));
 
-    logger.debug('SDK', `Querying OpenRouter multi-turn (${model})`, {
+    logger.debug('SDK', `Querying LM Studio (${model})`, {
       turns: truncatedHistory.length,
       totalChars,
       estimatedTokens
     });
 
-    const response = await fetch(OPENROUTER_API_URL, {
+    const response = await fetch(`${baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'HTTP-Referer': siteUrl || 'https://github.com/thedotmack/claude-mem',
-        'X-Title': appName || 'claude-mem',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         model,
         messages,
-        temperature: 0.3,  // Lower temperature for structured extraction
-        max_tokens: 4096,
+        temperature: 0.3,
+        max_tokens: this.getMaxOutputTokens(),
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`OpenRouter API error: ${response.status} - ${errorText}`);
+      throw new Error(`LM Studio API error: ${response.status} - ${errorText}`);
     }
 
-    const data = await response.json() as OpenRouterResponse;
+    const data = await response.json() as LMStudioResponse;
 
-    // Check for API error in response body
     if (data.error) {
-      throw new Error(`OpenRouter API error: ${data.error.code} - ${data.error.message}`);
+      throw new Error(`LM Studio API error: ${data.error.code} - ${data.error.message}`);
     }
 
     if (!data.choices?.[0]?.message?.content) {
-      logger.error('SDK', 'Empty response from OpenRouter');
+      logger.error('SDK', 'Empty response from LM Studio');
       return { content: '' };
     }
 
     const content = data.choices[0].message.content;
     const tokensUsed = data.usage?.total_tokens;
 
-    // Log actual token usage for cost tracking
     if (tokensUsed) {
       const inputTokens = data.usage?.prompt_tokens || 0;
       const outputTokens = data.usage?.completion_tokens || 0;
-      // Token usage (cost varies by model - many OpenRouter models are free)
-      const estimatedCost = (inputTokens / 1000000 * 3) + (outputTokens / 1000000 * 15);
 
-      logger.info('SDK', 'OpenRouter API usage', {
+      logger.info('SDK', 'LM Studio usage (local, no cost)', {
         model,
         inputTokens,
         outputTokens,
         totalTokens: tokensUsed,
-        estimatedCostUSD: estimatedCost.toFixed(4),
         messagesInContext: truncatedHistory.length
       });
-
-      // Warn if costs are getting high
-      if (tokensUsed > 50000) {
-        logger.warn('SDK', 'High token usage detected - consider reducing context', {
-          totalTokens: tokensUsed,
-          estimatedCost: estimatedCost.toFixed(4)
-        });
-      }
     }
 
     return { content, tokensUsed };
   }
 
   /**
-   * Get OpenRouter configuration from settings or environment
+   * Get LM Studio configuration from settings
    */
-  private getOpenRouterConfig(): { apiKey: string; model: string; siteUrl?: string; appName?: string } {
-    const settingsPath = USER_SETTINGS_PATH;
-    const settings = SettingsDefaultsManager.loadFromFile(settingsPath);
+  private getLMStudioConfig(): { baseUrl: string; model: string } {
+    const settings = SettingsDefaultsManager.loadFromFile(USER_SETTINGS_PATH);
 
-    // API key: check settings first, then environment variable
-    const apiKey = settings.CLAUDE_MEM_OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY || '';
+    const baseUrl = settings.CLAUDE_MEM_LMSTUDIO_BASE_URL || DEFAULT_LMSTUDIO_BASE_URL;
+    const model = settings.CLAUDE_MEM_LMSTUDIO_MODEL || 'ibm/granite-4-h-tiny';
 
-    // Model: from settings or default
-    const model = settings.CLAUDE_MEM_OPENROUTER_MODEL || 'xiaomi/mimo-v2-flash:free';
+    return { baseUrl, model };
+  }
 
-    // Optional analytics headers
-    const siteUrl = settings.CLAUDE_MEM_OPENROUTER_SITE_URL || '';
-    const appName = settings.CLAUDE_MEM_OPENROUTER_APP_NAME || 'claude-mem';
-
-    return { apiKey, model, siteUrl, appName };
+  private getMaxOutputTokens(): number {
+    const settings = SettingsDefaultsManager.loadFromFile(USER_SETTINGS_PATH);
+    return parseInt(settings.CLAUDE_MEM_LMSTUDIO_MAX_OUTPUT_TOKENS) || DEFAULT_MAX_OUTPUT_TOKENS;
   }
 }
 
 /**
- * Check if OpenRouter is available (has API key configured)
+ * Check if LM Studio is available (has model configured)
  */
-export function isOpenRouterAvailable(): boolean {
-  const settingsPath = USER_SETTINGS_PATH;
-  const settings = SettingsDefaultsManager.loadFromFile(settingsPath);
-  return !!(settings.CLAUDE_MEM_OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY);
+export function isLMStudioAvailable(): boolean {
+  const settings = SettingsDefaultsManager.loadFromFile(USER_SETTINGS_PATH);
+  return !!(settings.CLAUDE_MEM_LMSTUDIO_MODEL || settings.CLAUDE_MEM_LMSTUDIO_BASE_URL);
 }
 
 /**
- * Check if OpenRouter is the selected provider
+ * Check if LM Studio is the selected provider
  */
-export function isOpenRouterSelected(): boolean {
-  const settingsPath = USER_SETTINGS_PATH;
-  const settings = SettingsDefaultsManager.loadFromFile(settingsPath);
-  return settings.CLAUDE_MEM_PROVIDER === 'openrouter';
+export function isLMStudioSelected(): boolean {
+  const settings = SettingsDefaultsManager.loadFromFile(USER_SETTINGS_PATH);
+  return settings.CLAUDE_MEM_PROVIDER === 'lmstudio';
 }

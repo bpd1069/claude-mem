@@ -14,8 +14,10 @@ import {
   getChildProcesses,
   forceKillProcess,
   waitForProcessesExit,
-  removePidFile
+  removePidFile,
+  findOrphanedObserverProcesses
 } from './ProcessManager.js';
+import { ObserverRegistry } from './ObserverRegistry.js';
 
 export interface ShutdownableService {
   shutdownAll(): Promise<void>;
@@ -52,6 +54,14 @@ export async function performGracefulShutdown(config: GracefulShutdownConfig): P
   // Clean up PID file on shutdown
   removePidFile();
 
+  // STEP 0: Kill all registered observers immediately
+  try {
+    await ObserverRegistry.getInstance().killAll();
+    logger.info('SYSTEM', 'Registered observers killed');
+  } catch (error) {
+    logger.debug('SYSTEM', 'Failed to kill registered observers', {}, error as Error);
+  }
+
   // STEP 1: Enumerate all child processes BEFORE we start closing things
   const childPids = await getChildProcesses(process.pid);
   logger.info('SYSTEM', 'Found child processes', { count: childPids.length, pids: childPids });
@@ -84,6 +94,19 @@ export async function performGracefulShutdown(config: GracefulShutdownConfig): P
     }
     // Wait for children to fully exit
     await waitForProcessesExit(childPids, 5000);
+  }
+
+  // STEP 7: Find and kill any orphaned observer processes missed by registry
+  try {
+    const orphanedPids = await findOrphanedObserverProcesses();
+    if (orphanedPids.length > 0) {
+      logger.info('SYSTEM', 'Killing orphaned observer processes', { count: orphanedPids.length, pids: orphanedPids });
+      for (const pid of orphanedPids) {
+        await forceKillProcess(pid);
+      }
+    }
+  } catch (error) {
+    logger.debug('SYSTEM', 'Failed to cleanup orphaned observers', {}, error as Error);
   }
 
   logger.info('SYSTEM', 'Worker shutdown complete');
